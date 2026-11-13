@@ -12,5 +12,6 @@ RUN pnpm --filter @eva/frontend exec vite build
 FROM caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee
 COPY frontend/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/frontend/dist /srv
+ADD --chmod=0444 --checksum=sha256:e1795611500188077a6eadd5597b03b840f6d530f5e2904b621b378f8e007c73 https://raw.githubusercontent.com/Meteor-Wallet/meteor_wallet_sdk/6369ad789d2f3aaf8e6ccb065021723111027174/storage/meteor-near-connect-latest.js /srv/meteor-near-connect.js
 ENV XDG_CONFIG_HOME=/tmp XDG_DATA_HOME=/tmp EVA_MODE=testnet
 USER 10001:10001

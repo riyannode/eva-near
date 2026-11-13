@@ -2,13 +2,12 @@
 
 ## First screen
 
-The homepage explains why a freelancer needs a work reference when a project is confidential. The sample card shows the contribution, agency, and privacy boundary together. The first screen gives each role a direct entry point. The interactive demo remains a separate link.
+The homepage explains why a freelancer needs a work reference when a project is confidential. The sample card shows the contribution, agency, and privacy boundary together. **Open EVA** opens a native dialog titled **How will you use EVA?** after activation. Each of the three role choices navigates directly. Show **NEAR wallet** on the Agency choice. Escape closes the dialog and focus returns to the trigger. The interactive demo remains a separate link.
 
 ## Screens
 
-- `/freelancer` leads with the request form. A freelancer can copy a draft to send to an existing agency contact. In an enabled pilot, a freelancer can submit the claim and check its status.
-- `/agency` leads with the operator's actions. An enabled pilot adds the private inbox and review decisions. Approval prepares the claim for CLI issuance. Use the terms **Approved** and **Issued** for those two distinct steps.
-- `/agency/wallet` lets the configured NEAR Testnet issuer connect a compatible wallet extension and revoke an issued reference after a verified preview.
+- `/freelancer` leads with the request form. A freelancer can copy a draft to send to an existing agency contact.
+- `/agency` leads with wallet connection and the approved wording form. Show the selected account before issuing. Enable share actions after a matching final read. Provide a way to check a saved reference and allow revocation by its issuer. A wallet request can be awaiting confirmation, submitted, failed, or uncertain. Check final state before retrying an uncertain action.
 - `/recruiter` opens the public verifier. Recruiters can check an issued reference without a wallet or account.
 - `/project` gives visitors with an older bookmark links to the role pages.
 - `/demo` displays a sample claim and text-labeled `Valid`, `Revoked`, and `Edited` choices. In Sandbox it also links to `/issue` so judges can issue, verify, and revoke a reference using the local contract.
@@ -31,7 +30,7 @@ Status uses text and an optional decorative icon, never color alone. Async statu
 
 ## Layout and interaction
 
-Use the shared landing shell for navigation, footer, and palette. Warm paper and a subdued green wash form the background. Workspace frames use an off-white surface with a light rule. The product uses the [ReUI Frame pattern](https://reui.io/components/frame) and [shadcn Field composition](https://ui.shadcn.com/docs/components/base/field) in its existing CSS. Use a wide, left-aligned desktop workspace with comfortable gutters. Keep prose and fields at a readable width within it. Stack columns on mobile with at least 16 px of padding. Maintain 4/8/12/16/24/32 px spacing, 44 px minimum targets, visible focus, explicit labels, and wrapping for claims and IDs.
+Use the shared landing shell for navigation, footer, and palette. Warm paper and a subdued green wash form the background. Workspace frames use an off-white surface with a light rule. The product uses the [ReUI Frame pattern](https://reui.io/components/frame) and [shadcn Field composition](https://ui.shadcn.com/docs/components/base/field) in its existing CSS. Use the same wide, left-aligned desktop workspace across roles. Keep prose and fields at a readable width within it. Stack columns on mobile with at least 16 px of padding. Maintain 4/8/12/16/24/32 px spacing, 44 px minimum targets, visible focus, explicit labels, and wrapping for claims and IDs.
 
 Bundle fonts locally. Use the existing Geist and system font stack across the screens. Press feedback may scale to 0.97 over 120–160 ms with the supplied easing curve. Honor `prefers-reduced-motion`; do not delay keyboard outcomes or animate card height. Clipboard success is announced near the button; a read-only field is the fallback.
 

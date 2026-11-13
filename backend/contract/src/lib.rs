@@ -1,86 +1,80 @@
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use near_sdk::store::LookupMap;
-use near_sdk::{AccountId, PanicOnDefault, env, near, require};
+use near_sdk::{AccountId, NearToken, PanicOnDefault, Promise, env, near, require};
 
-const RECORDS_PREFIX: &[u8] = b"eva:reference:v1:records";
-const CAP: u32 = 1024;
+const RECORDS_PREFIX: &[u8] = b"references";
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct Reference {
-    issuer_id: AccountId,
-    issuer_key: [u8; 32],
-    issued_count: u32,
     references: LookupMap<[u8; 16], Record>,
 }
 
 #[near(serializers = [borsh])]
 pub struct Record {
+    issuer_id: AccountId,
     commitment: [u8; 32],
     revoked: bool,
 }
 
 #[near(serializers = [json])]
 pub struct RecordView {
+    issuer_id: AccountId,
     commitment: String,
     revoked: bool,
-}
-
-#[near(serializers = [json])]
-pub struct ReferenceView {
-    issuer_id: AccountId,
-    issuer_key: String,
-    record: Option<RecordView>,
 }
 
 #[near]
 impl Reference {
     #[init]
-    pub fn init(issuer_id: AccountId, issuer_key: String) -> Self {
+    pub fn init() -> Self {
         require!(
             env::predecessor_account_id() == env::current_account_id(),
             "FORBIDDEN"
         );
-        require!(env::attached_deposit().as_yoctonear() == 0, "INVALID_INPUT");
-        let issuer_key = decode_key(&issuer_key);
         Self {
-            issuer_id,
-            issuer_key,
-            issued_count: 0,
             references: LookupMap::new(RECORDS_PREFIX),
         }
     }
 
+    #[payable]
     pub fn issue(&mut self, reference_id: String, commitment: String) -> String {
-        self.assert_issuer();
-        require!(env::attached_deposit().as_yoctonear() == 0, "INVALID_INPUT");
-        let reference_id = decode_hex::<16>(&reference_id);
+        let id = decode_hex::<16>(&reference_id);
         let commitment = decode_hex::<32>(&commitment);
-        if let Some(record) = self.references.get(&reference_id) {
+        let issuer = env::predecessor_account_id();
+        let deposit = env::attached_deposit().as_yoctonear();
+        if let Some(record) = self.references.get(&id) {
             require!(!record.revoked, "REFERENCE_REVOKED");
-            require!(record.commitment == commitment, "REFERENCE_CONFLICT");
+            require!(
+                record.issuer_id == issuer && record.commitment == commitment,
+                "REFERENCE_CONFLICT"
+            );
+            refund(&issuer, deposit);
             return "UNCHANGED".to_string();
         }
-        require!(self.issued_count < CAP, "CAP_REACHED");
-        self.issued_count = self.issued_count.checked_add(1).expect("CAP_REACHED");
+        let before = env::storage_usage();
         self.references.insert(
-            reference_id,
+            id,
             Record {
+                issuer_id: issuer.clone(),
                 commitment,
                 revoked: false,
             },
         );
+        self.references.flush();
+        let cost =
+            u128::from(env::storage_usage() - before) * env::storage_byte_cost().as_yoctonear();
+        require!(deposit >= cost, "INSUFFICIENT_DEPOSIT");
+        refund(&issuer, deposit - cost);
         "ISSUED".to_string()
     }
 
     pub fn revoke(&mut self, reference_id: String) -> String {
-        self.assert_issuer();
-        require!(env::attached_deposit().as_yoctonear() == 0, "INVALID_INPUT");
-        let reference_id = decode_hex::<16>(&reference_id);
-        let record = self
-            .references
-            .get_mut(&reference_id)
-            .expect("REFERENCE_NOT_FOUND");
+        let id = decode_hex::<16>(&reference_id);
+        let record = self.references.get_mut(&id).expect("REFERENCE_NOT_FOUND");
+        require!(
+            record.issuer_id == env::predecessor_account_id(),
+            "FORBIDDEN"
+        );
         if record.revoked {
             return "UNCHANGED".to_string();
         }
@@ -88,44 +82,36 @@ impl Reference {
         "REVOKED".to_string()
     }
 
-    pub fn get_reference(&self, reference_id: String) -> ReferenceView {
-        let reference_id = decode_hex::<16>(&reference_id);
-        ReferenceView {
-            issuer_id: self.issuer_id.clone(),
-            issuer_key: URL_SAFE_NO_PAD.encode(self.issuer_key),
-            record: self.references.get(&reference_id).map(|record| RecordView {
+    pub fn get_reference(&self, reference_id: String) -> Option<RecordView> {
+        self.references
+            .get(&decode_hex::<16>(&reference_id))
+            .map(|record| RecordView {
+                issuer_id: record.issuer_id.clone(),
                 commitment: encode_hex(&record.commitment),
                 revoked: record.revoked,
-            }),
-        }
-    }
-
-    fn assert_issuer(&self) {
-        require!(env::predecessor_account_id() == self.issuer_id, "FORBIDDEN");
+            })
     }
 }
 
-fn decode_key(value: &str) -> [u8; 32] {
-    let bytes = URL_SAFE_NO_PAD.decode(value).expect("INVALID_INPUT");
-    require!(
-        bytes.len() == 32 && URL_SAFE_NO_PAD.encode(&bytes) == value,
-        "INVALID_INPUT"
-    );
-    bytes.try_into().expect("INVALID_INPUT")
+fn refund(account: &AccountId, amount: u128) {
+    if amount > 0 {
+        Promise::new(account.clone())
+            .transfer(NearToken::from_yoctonear(amount))
+            .detach();
+    }
 }
 
 fn decode_hex<const N: usize>(value: &str) -> [u8; N] {
-    require!(value.len() == N * 2, "INVALID_INPUT");
     require!(
-        value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        value.len() == N * 2
+            && value
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
         "INVALID_INPUT"
     );
     let mut bytes = [0; N];
     for (index, byte) in bytes.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&value[offset..offset + 2], 16).expect("INVALID_INPUT");
+        *byte = u8::from_str_radix(&value[index * 2..index * 2 + 2], 16).expect("INVALID_INPUT");
     }
     bytes
 }
@@ -134,7 +120,7 @@ fn encode_hex<const N: usize>(value: &[u8; N]) -> String {
     let mut result = String::with_capacity(N * 2);
     for byte in value {
         use std::fmt::Write as _;
-        write!(&mut result, "{byte:02x}").expect("writing to String cannot fail");
+        write!(&mut result, "{byte:02x}").expect("write to String");
     }
     result
 }
@@ -142,152 +128,122 @@ fn encode_hex<const N: usize>(value: &[u8; N]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::test_utils::{VMContextBuilder, accounts};
-    use near_sdk::{NearToken, testing_env};
+    use near_sdk::mock::MockAction;
+    use near_sdk::test_utils::{VMContextBuilder, accounts, get_created_receipts};
+    use near_sdk::testing_env;
 
-    const KEY: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    const ID: &str = "00000000000000000000000000000001";
+    const ID: &str = "00112233445566778899aabbccddeeff";
     const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    const OTHER_HASH: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
-    fn context(predecessor: AccountId) {
+    fn context(account: AccountId, deposit: u128) {
         testing_env!(
             VMContextBuilder::new()
                 .current_account_id(accounts(0))
-                .signer_account_id(predecessor.clone())
-                .predecessor_account_id(predecessor)
+                .predecessor_account_id(account)
+                .attached_deposit(NearToken::from_yoctonear(deposit))
                 .build()
         );
     }
-
     fn contract() -> Reference {
-        context(accounts(0));
-        Reference::init(accounts(1), KEY.to_string())
+        context(accounts(0), 0);
+        Reference::init()
     }
-
-    fn panic_message<T>(operation: impl FnOnce() -> T) -> String {
-        let panic = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(operation)) {
-            Ok(_) => panic!("operation should panic"),
-            Err(panic) => panic,
-        };
-        panic
+    fn panic_text(f: impl FnOnce()) -> String {
+        let error =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).expect_err("expected panic");
+        error
             .downcast_ref::<String>()
             .cloned()
-            .or_else(|| {
-                panic
-                    .downcast_ref::<&str>()
-                    .map(|message| (*message).to_string())
-            })
+            .or_else(|| error.downcast_ref::<&str>().map(|x| x.to_string()))
             .unwrap_or_default()
     }
-
-    #[test]
-    fn init_is_self_only_and_validates_key() {
-        context(accounts(1));
-        assert!(
-            panic_message(|| Reference::init(accounts(1), KEY.to_string())).contains("FORBIDDEN")
-        );
-        context(accounts(0));
-        assert!(
-            panic_message(|| Reference::init(accounts(1), "bad".to_string()))
-                .contains("INVALID_INPUT")
-        );
+    fn assert_refund(account: AccountId, amount: u128) {
+        let receipts = get_created_receipts();
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0].receiver_id, account);
+        assert!(matches!(
+            receipts[0].actions.as_slice(),
+            [MockAction::Transfer { deposit, .. }] if deposit.as_yoctonear() == amount
+        ));
     }
 
     #[test]
-    fn only_issuer_can_issue_or_revoke() {
-        let mut contract = contract();
-        testing_env!(
-            VMContextBuilder::new()
-                .current_account_id(accounts(0))
-                .signer_account_id(accounts(1))
-                .predecessor_account_id(accounts(2))
-                .build()
+    fn issue_owner_conflict_revoke_and_no_overwrite() {
+        let mut c = contract();
+        context(accounts(1), 10u128.pow(22));
+        assert_eq!(c.issue(ID.into(), HASH.into()), "ISSUED");
+        context(accounts(1), 10u128.pow(22));
+        assert_eq!(c.issue(ID.into(), HASH.into()), "UNCHANGED");
+        assert_refund(accounts(1), 10u128.pow(22));
+        assert!(
+            panic_text(|| {
+                c.issue(ID.into(), "b".repeat(64));
+            })
+            .contains("REFERENCE_CONFLICT")
+        );
+        context(accounts(2), 10u128.pow(22));
+        assert!(
+            panic_text(|| {
+                c.issue(ID.into(), HASH.into());
+            })
+            .contains("REFERENCE_CONFLICT")
         );
         assert!(
-            panic_message(|| contract.issue(ID.to_string(), HASH.to_string()))
-                .contains("FORBIDDEN")
+            panic_text(|| {
+                c.revoke(ID.into());
+            })
+            .contains("FORBIDDEN")
         );
-        assert!(panic_message(|| contract.revoke(ID.to_string())).contains("FORBIDDEN"));
-    }
-
-    #[test]
-    fn issue_is_idempotent_and_conflicts_do_not_overwrite() {
-        let mut contract = contract();
-        context(accounts(1));
-        assert_eq!(contract.issue(ID.to_string(), HASH.to_string()), "ISSUED");
-        assert_eq!(
-            contract.issue(ID.to_string(), HASH.to_string()),
-            "UNCHANGED"
-        );
-        assert!(
-            panic_message(|| contract.issue(ID.to_string(), OTHER_HASH.to_string()))
-                .contains("REFERENCE_CONFLICT")
-        );
-        assert_eq!(contract.issued_count, 1);
-    }
-
-    #[test]
-    fn revoke_is_permanent_idempotent_and_viewable() {
-        let mut contract = contract();
-        context(accounts(1));
-        contract.issue(ID.to_string(), HASH.to_string());
-        assert_eq!(contract.revoke(ID.to_string()), "REVOKED");
-        assert_eq!(contract.revoke(ID.to_string()), "UNCHANGED");
-        assert!(
-            panic_message(|| contract.issue(ID.to_string(), HASH.to_string()))
-                .contains("REFERENCE_REVOKED")
-        );
-        let view = contract.get_reference(ID.to_string());
+        let view = c.get_reference(ID.into()).unwrap();
         assert_eq!(view.issuer_id, accounts(1));
-        assert!(view.record.expect("record exists").revoked);
+        assert_eq!(view.commitment, HASH);
+        context(accounts(1), 0);
+        assert_eq!(c.revoke(ID.into()), "REVOKED");
+        assert_eq!(c.revoke(ID.into()), "UNCHANGED");
+        assert!(
+            panic_text(|| {
+                c.issue(ID.into(), HASH.into());
+            })
+            .contains("REFERENCE_REVOKED")
+        );
+        assert!(c.get_reference(ID.into()).unwrap().revoked);
     }
-
     #[test]
-    fn missing_record_and_bad_inputs_are_rejected() {
-        let mut contract = contract();
-        context(accounts(1));
-        assert!(panic_message(|| contract.revoke(ID.to_string())).contains("REFERENCE_NOT_FOUND"));
+    fn validates_inputs_and_storage_bound_with_longest_account() {
+        let mut c = contract();
+        let owner: AccountId = "a".repeat(64).parse().unwrap();
+        let deposit = 10u128.pow(22);
+        context(owner.clone(), deposit);
         assert!(
-            panic_message(|| contract.issue("00".to_string(), HASH.to_string()))
-                .contains("INVALID_INPUT")
+            panic_text(|| {
+                c.issue("bad".into(), HASH.into());
+            })
+            .contains("INVALID_INPUT")
         );
         assert!(
-            panic_message(|| contract.issue("é".repeat(16), HASH.to_string()))
-                .contains("INVALID_INPUT")
+            panic_text(|| {
+                c.issue(ID.into(), "G".repeat(64));
+            })
+            .contains("INVALID_INPUT")
         );
-        assert!(
-            panic_message(|| contract.issue(ID.to_string(), "GG".repeat(32)))
-                .contains("INVALID_INPUT")
-        );
-    }
+        let before = env::storage_usage();
+        assert_eq!(c.issue(ID.into(), HASH.into()), "ISSUED");
+        let cost =
+            u128::from(env::storage_usage() - before) * env::storage_byte_cost().as_yoctonear();
+        assert!(cost > 0 && cost < deposit);
+        assert_refund(owner.clone(), deposit - cost);
+        context(owner.clone(), cost);
+        assert_eq!(c.issue("1".repeat(32), HASH.into()), "ISSUED");
+        assert!(get_created_receipts().is_empty());
 
-    #[test]
-    fn nonzero_deposit_is_rejected() {
-        let mut contract = contract();
-        testing_env!(
-            VMContextBuilder::new()
-                .current_account_id(accounts(0))
-                .signer_account_id(accounts(1))
-                .predecessor_account_id(accounts(1))
-                .attached_deposit(NearToken::from_yoctonear(1))
-                .build()
-        );
+        // The VM reverts writes on panic. The unit-test mock retains them.
+        context(owner, cost - 1);
         assert!(
-            panic_message(|| contract.issue(ID.to_string(), HASH.to_string()))
-                .contains("INVALID_INPUT")
+            panic_text(|| {
+                c.issue("2".repeat(32), HASH.into());
+            })
+            .contains("INSUFFICIENT_DEPOSIT")
         );
-        assert_eq!(contract.issued_count, 0);
-    }
-
-    #[test]
-    fn cap_cannot_be_exceeded() {
-        let mut contract = contract();
-        contract.issued_count = CAP;
-        context(accounts(1));
-        assert!(
-            panic_message(|| contract.issue(ID.to_string(), HASH.to_string()))
-                .contains("CAP_REACHED")
-        );
+        assert!(get_created_receipts().is_empty());
     }
 }

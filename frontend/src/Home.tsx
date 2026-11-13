@@ -1,10 +1,22 @@
+import { useRef } from "react";
+
 export default function Home() {
+  const dialog = useRef<HTMLDialogElement>(null);
   return <main id="main" tabIndex={-1} className="landing landing-main">
       <section className="landing-hero" aria-labelledby="landing-title">
         <div className="landing-intro">
           <h1 id="landing-title">Show what you did on a confidential project</h1>
           <p>Ask the agency you worked with to confirm one contribution. Share the reference with a recruiter while keeping the client’s name and project files private.</p>
-          <a className="button primary landing-cta" href="/freelancer">Request a reference <span aria-hidden="true">→</span></a>
+          <button className="button primary landing-cta" type="button" onClick={() => dialog.current?.showModal()}>Open EVA <span aria-hidden="true">→</span></button>
+          <dialog ref={dialog} aria-labelledby="role-dialog-title">
+            <h2 id="role-dialog-title">How will you use EVA?</h2>
+            <div className="landing-paths">
+              <a href="/freelancer"><span><strong>Freelancer</strong><small>Request a reference</small></span></a>
+              <a href="/agency"><span><strong>Agency (NEAR wallet)</strong><small>Issue and manage references</small></span></a>
+              <a href="/recruiter"><span><strong>Recruiter</strong><small>Verify a reference</small></span></a>
+            </div>
+            <button type="button" onClick={() => dialog.current?.close()}>Close</button>
+          </dialog>
         </div>
 
         <figure className="landing-example">
@@ -30,8 +42,8 @@ export default function Home() {
         </div>
         <div className="landing-paths">
           <a href="/freelancer"><span><strong>Freelancer: request a reference</strong><small>Request a reference from your agency.</small></span><span aria-hidden="true">↗</span></a>
-          <a href="/agency"><span><strong>Agency: review a request</strong><small>Review requests and issue a reference.</small></span><span aria-hidden="true">↗</span></a>
-        <a href="/recruiter"><span><strong>Recruiter: verify a reference</strong><small>Check the signed claim and registry status.</small></span><span aria-hidden="true">↗</span></a>
+          <a href="/agency"><span><strong>Agency: issue a reference</strong><small>Issue and manage approved references.</small></span><span aria-hidden="true">↗</span></a>
+        <a href="/recruiter"><span><strong>Recruiter: verify a reference</strong><small>Check the claim and registry status.</small></span><span aria-hidden="true">↗</span></a>
         </div>
       </section>
 

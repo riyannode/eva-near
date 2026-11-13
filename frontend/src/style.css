@@ -65,13 +65,9 @@ dialog::backdrop { background: rgb(24 33 30 / 55%); }
 .request-form .preview { overflow-wrap: anywhere; }
 .request-form .preview p { white-space: pre-wrap; }
 .fine-print, .copy-status { color: #46534d; font-size: .875rem; }
-.cli-disclosure { margin-top: 12px; border: 0; }
-.cli-disclosure summary { border-top: 1px solid #d8dfda; }
-.cli-steps { margin: 0; padding: 12px; overflow-wrap: anywhere; white-space: pre-wrap; background: #f7f7f4; border-radius: 6px; font-size: .8rem; }
 .evidence { margin-top: 24px; }
 .section-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .source-tag { flex-shrink: 0; padding: 4px 8px; border: 1px solid #aabbb3; border-radius: 6px; color: #075444; font-size: .8rem; font-weight: 700; }
-.testnet-links { margin-block: 16px; }
 .site-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid #d8dfda; color: #46534d; font-size: .875rem; }
 .sample-walkthrough { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .sample-walkthrough p { margin-block: 8px; }
@@ -124,10 +120,13 @@ dialog::backdrop { background: rgb(24 33 30 / 55%); }
   width: 100%; padding: 10px; resize: vertical; border: 1px solid #aabbb3;
   border-radius: 6px; font: inherit; color: inherit;
 }
-.pilot-content, .wallet-reference { margin-top: 20px; }
-.pilot-request { padding-block: 16px; border-top: 1px solid var(--rule); }
-.workspace-back { display: inline-block; margin-top: 24px; }
-.wallet-message { margin-bottom: 0; }
+.agency-issue > .request-form, .agency-result { margin-top: 20px; }
+.agency-issue > .fine-print { margin-top: -6px; }
+.agency-account { display: flex; flex-wrap: wrap; gap: 8px; }
+.agency-account select {
+  max-width: 100%; min-height: 44px; padding: 8px; border: 1px solid #aabbb3;
+  border-radius: 6px; color: inherit; background: #fff; font: inherit;
+}
 .demo-grid, .verify-grid, .issue-grid, .role-main {
   display: grid;
   gap: clamp(16px, 3vw, 32px);

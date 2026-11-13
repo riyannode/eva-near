@@ -4,7 +4,6 @@ import type { ReferenceProfile, ReferenceRecord, Verification } from "@eva/backe
 import { getProfile } from "./api.ts";
 import { ReferenceCard } from "./Verify.tsx";
 import fixtures from "./demo.json";
-import { testnetExamples } from "./testnetExamples.ts";
 
 const examples = ["Valid", "Revoked", "Edited"] as const;
 const profile: ReferenceProfile = { network: "sample", contractId: "reference.sample", issuerId: "studio.sample" };
@@ -30,8 +29,7 @@ export default function Demo() {
   useEffect(() => {
     let current = true;
     const record: ReferenceRecord = {
-      issuerId: profile.issuerId, issuerKey: fixtures.issuerKey,
-      record: { commitment: fixture.commitment, revoked: example === "Valid" && guidedStep === "revoked" ? true : fixture.revoked },
+      record: { issuerId: profile.issuerId, commitment: fixture.commitment, revoked: example === "Valid" && guidedStep === "revoked" ? true : fixture.revoked },
     };
     void verifyReference(parseLinkFragment(fixture.fragment), profile, async () => record)
       .then(value => { if (current) setResult(value); });
@@ -41,7 +39,7 @@ export default function Demo() {
   return <main id="main" tabIndex={-1} className="workspace demo-main">
       <p className="eyebrow">Sample data</p>
       <h1>Try a work reference</h1>
-      <div className="demo-grid"><section aria-label="Sample verifier"><div id="sample-reference" ref={sampleCard} tabIndex={-1}><ReferenceCard payload={link.payload} issuer="Studio A" profile={profile} outcome={result} /></div>
+      <div className="demo-grid"><section aria-label="Sample verifier"><div id="sample-reference" ref={sampleCard} tabIndex={-1}><ReferenceCard payload={link.payload} profile={profile} outcome={result} /></div>
       <p className="privacy">Client name and project files are kept private.</p>
       <div className="actions">
         <button type="button" className="primary" onClick={() => firstOption.current?.focus()}>Try the demo</button>
@@ -72,10 +70,6 @@ export default function Demo() {
           <li>Revoke from the issue page, then refresh the same link to see <code>REVOKED</code>.</li></ol>
         <p>Sandbox references belong to this local session and can disappear when it restarts.</p>
       </section>
-      <section className="evidence" aria-labelledby="testnet-demo-title">
-        <div className="section-heading"><div><p className="eyebrow">Live registry</p><h2 id="testnet-demo-title">Real NEAR Testnet references</h2></div><span className="source-tag">NEAR Testnet</span></div>
-        <div className="actions testnet-links">{testnetExamples.map(item => <a className="button" key={item.label}
-          href={item.url} target="_blank" rel="noreferrer">{item.label}</a>)}</div>
-      </section>
+
     </main>;
 }

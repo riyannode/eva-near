@@ -1,9 +1,8 @@
-import { registerPilot } from "./pilot.ts";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import type { ReferenceEnvelope } from "./issuer.ts";
 import { assertProfile, createProvider, readReference, submitReferenceAction, type TransactionEvidence } from "./near.ts";
 import type { JudgeRuntime } from "./sandbox.ts";
-import type { Network, ReferenceProfile } from "./reference.ts";
+import { isAccountId, type Network, type ReferenceProfile } from "./reference.ts";
 
 interface Intent {
   readonly envelope: Promise<ReferenceEnvelope>;
@@ -23,11 +22,10 @@ const app = Fastify({
 });
 const intents = new Map<string, Intent>();
 let judge: JudgeRuntime | undefined;
-let profile: ReferenceProfile = mode === "sandbox"
-  ? { network: "sandbox", contractId: "reference.sandbox", issuerId: "studio.sandbox" }
-  : { network: "testnet", contractId: process.env.NEAR_CONTRACT_ID ?? "replace-contract.testnet", issuerId: process.env.NEAR_ISSUER_ID ?? "replace-issuer.testnet" };
+let profile: Pick<ReferenceProfile, "network" | "contractId"> = mode === "sandbox"
+  ? { network: "sandbox", contractId: "reference.sandbox" }
+  : { network: "testnet", contractId: process.env.NEAR_CONTRACT_ID ?? "replace-contract.testnet" };
 let rpcProvider: ReturnType<typeof createProvider> | undefined;
-let issuerLabel = process.env.ISSUER_LABEL ?? "Studio A";
 let publicOrigin = process.env.APP_ORIGIN ?? process.env.PUBLIC_ORIGIN ?? "http://127.0.0.1:8080";
 
 function envValue(name: string): string {
@@ -36,24 +34,19 @@ function envValue(name: string): string {
   return value;
 }
 
-function accountId(value: string): boolean {
-  return value.length >= 2 && value.length <= 64 && /^[a-z0-9]+(?:[-_][a-z0-9]+)*(?:\.[a-z0-9]+(?:[-_][a-z0-9]+)*)*$/u.test(value);
-}
 
 function configureTestnet(): void {
   const network: Network = "testnet";
   const contractId = envValue("NEAR_CONTRACT_ID");
-  const issuerId = envValue("NEAR_ISSUER_ID");
   const rpcUrl = new URL(envValue("NEAR_RPC_URL"));
   const origin = new URL(envValue("PUBLIC_ORIGIN"));
   publicOrigin = origin.origin;
-  if (!accountId(contractId) || !accountId(issuerId) || rpcUrl.protocol !== "https:" || rpcUrl.username || rpcUrl.password
+  if (!isAccountId(contractId) || rpcUrl.protocol !== "https:" || rpcUrl.username || rpcUrl.password
     || origin.protocol !== "https:" || origin.href !== origin.origin + "/") {
     throw new Error("INVALID_INPUT");
   }
-  profile = { network, contractId, issuerId };
+  profile = { network, contractId };
   rpcProvider = createProvider(rpcUrl.href);
-  issuerLabel = envValue("ISSUER_LABEL");
 }
 
 async function initialize(): Promise<void> {
@@ -62,7 +55,6 @@ async function initialize(): Promise<void> {
     judge = await startSandbox();
     profile = judge.profile;
     rpcProvider = judge.provider;
-    issuerLabel = "Studio A";
     publicOrigin = judge.publicOrigin;
     return;
   }
@@ -91,10 +83,7 @@ app.setNotFoundHandler((_request, reply) => {
 app.get("/api/config", async () => ({
   network: profile.network,
   contractId: profile.contractId,
-  issuerId: profile.issuerId,
-  issuerLabel,
   canIssue: mode === "sandbox",
-  pilotEnabled: process.env.PILOT_ENABLED === "true",
 }));
 
 app.get("/api/health", async () => ({ ok: true }));
@@ -102,7 +91,7 @@ app.get("/api/health", async () => ({ ok: true }));
 app.get("/api/ready", async (_request, reply) => {
   try {
     if (!rpcProvider) throw new Error("UNAVAILABLE");
-    await assertProfile(rpcProvider, profile, judge?.issuer.publicKey);
+    await assertProfile(rpcProvider, profile);
     return { ready: true };
   } catch {
     reply.code(503);
@@ -116,11 +105,9 @@ app.get<{ Params: { id: string } }>("/api/references/:id", async (request, reply
   try {
     if (await rpcProvider.getNetworkId() !== profile.network) throw new Error("UNAVAILABLE");
     const view = await readReference(rpcProvider, profile.contractId, request.params.id);
-    if (view.issuerId !== profile.issuerId || (judge && view.issuerKey !== judge.issuer.publicKey)) throw new Error("UNAVAILABLE");
     if (!view.record) return reply.code(404).send({ code: "REFERENCE_NOT_FOUND" });
     return {
-      issuerId: view.issuerId,
-      issuerKey: view.issuerKey,
+      issuerId: view.record.issuerId,
       commitment: view.record.commitment,
       revoked: view.record.revoked,
       blockHeight: view.blockHeight,
@@ -149,41 +136,35 @@ function requireJudge(reply: FastifyReply): JudgeRuntime | undefined {
   return judge;
 }
 
-async function tryIssue(intent: Intent, reply: FastifyReply) {
-  const runtime = requireJudge(reply);
-  if (!runtime) return;
-  const envelope = await intent.envelope;
+async function checkIssue(runtime: JudgeRuntime, envelope: ReferenceEnvelope, reply: FastifyReply, status: 200 | 201) {
+  const { record } = await readReference(runtime.provider, profile.contractId, envelope.referenceId);
+  if (!record) return sendPending(reply, "ISSUE_PENDING", envelope.referenceId);
+  if (record.issuerId !== runtime.profile.issuerId || record.commitment !== envelope.commitment) {
+    return reply.code(409).send({ code: "REFERENCE_CONFLICT" });
+  }
+  if (record.revoked) return reply.code(409).send({ code: "REFERENCE_REVOKED" });
+  return reply.code(status).send({ referenceId: envelope.referenceId, link: envelope.link });
+}
+
+async function tryIssue(runtime: JudgeRuntime, envelope: ReferenceEnvelope, reply: FastifyReply) {
   try {
-    const result = await submitReferenceAction(runtime.provider, runtime.issuerAccount, profile.contractId, {
+    const evidence = await submitReferenceAction(runtime.provider, runtime.issuerAccount, profile.contractId, {
       action: "issue",
       referenceId: envelope.referenceId,
       commitment: envelope.commitment,
     });
-    logEvidence(result.evidence);
-    const record = result.finalView;
-    if (!record.record || record.record.commitment !== envelope.commitment || record.record.revoked) {
-      return sendPending(reply, "ISSUE_PENDING", envelope.referenceId);
-    }
+    logEvidence(evidence);
     return reply.code(201).send({ referenceId: envelope.referenceId, link: envelope.link });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
     if (code === "UNAVAILABLE") return reply.code(503).send({ code });
-    if (code === "REFERENCE_CONFLICT" || code === "REFERENCE_REVOKED" || code === "CAP_REACHED") {
-      return reply.code(409).send({ code });
-    }
+    if (code === "REFERENCE_CONFLICT" || code === "REFERENCE_REVOKED") return reply.code(409).send({ code });
+    if (code === "INSUFFICIENT_DEPOSIT") return reply.code(500).send({ code });
     try {
-      const record = await readReference(runtime.provider, profile.contractId, envelope.referenceId);
-      if (record.record?.commitment === envelope.commitment && !record.record.revoked) {
-        return reply.code(201).send({ referenceId: envelope.referenceId, link: envelope.link });
-      }
-      if (record.record && record.record.commitment !== envelope.commitment) {
-        return reply.code(409).send({ code: "REFERENCE_CONFLICT" });
-      }
-      if (record.record?.revoked) return reply.code(409).send({ code: "REFERENCE_REVOKED" });
+      return await checkIssue(runtime, envelope, reply, 201);
     } catch {
       return sendPending(reply, "ISSUE_PENDING", envelope.referenceId);
     }
-    return sendPending(reply, "ISSUE_PENDING", envelope.referenceId);
   }
 }
 
@@ -221,7 +202,7 @@ if (mode === "sandbox") {
         if (intents.size >= 1024) return reply.code(409).send({ code: "CAP_REACHED" });
         const { createEnvelope } = await import("./issuer.ts");
         intent = {
-          envelope: createEnvelope(profile, publicOrigin, runtime.issuer, { referenceId, subject, claim }),
+          envelope: createEnvelope(runtime.profile, publicOrigin, { referenceId, subject, claim }),
           subject,
           claim,
           working: true,
@@ -238,7 +219,7 @@ if (mode === "sandbox") {
       if (intent.working) return sendPending(reply, "ISSUE_PENDING", referenceId);
       intent.working = true;
       try {
-        return await tryIssue(intent, reply);
+        return await tryIssue(runtime, await intent.envelope, reply);
       } finally {
         intent.working = false;
       }
@@ -250,15 +231,10 @@ if (mode === "sandbox") {
     if (!/^[a-f0-9]{32}$/u.test(request.params.id)) return reply.code(400).send({ code: "INVALID_INPUT" });
     const intent = intents.get(request.params.id);
     if (!intent) return reply.code(404).send({ code: "REFERENCE_NOT_FOUND" });
-    if (!rpcProvider) return reply.code(503).send({ code: "UNAVAILABLE" });
+    const runtime = requireJudge(reply);
+    if (!runtime) return;
     try {
-      const envelope = await intent.envelope;
-      const view = await readReference(rpcProvider, profile.contractId, request.params.id);
-      if (view.record?.commitment === envelope.commitment && !view.record.revoked) {
-        return { referenceId: request.params.id, link: envelope.link };
-      }
-      if (view.record && view.record.commitment !== envelope.commitment) return reply.code(409).send({ code: "REFERENCE_CONFLICT" });
-      return sendPending(reply, "ISSUE_PENDING", request.params.id);
+      return await checkIssue(runtime, await intent.envelope, reply, 200);
     } catch {
       return reply.code(503).send({ code: "UNAVAILABLE" });
     }
@@ -280,23 +256,22 @@ if (mode === "sandbox") {
     if (intent.working) return sendPending(reply, "REVOKE_PENDING", referenceId);
     intent.working = true;
     try {
-      const result = await submitReferenceAction(runtime.provider, runtime.issuerAccount, profile.contractId, {
+      const evidence = await submitReferenceAction(runtime.provider, runtime.issuerAccount, profile.contractId, {
         action: "revoke",
         referenceId,
       });
-      logEvidence(result.evidence);
-      const view = result.finalView;
-      if (!view.record) return reply.code(404).send({ code: "REFERENCE_NOT_FOUND" });
-      if (!view.record.revoked) return sendPending(reply, "REVOKE_PENDING", referenceId);
+      logEvidence(evidence);
       return { referenceId, revoked: true };
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       if (code === "UNAVAILABLE") return reply.code(503).send({ code });
       if (code === "REFERENCE_NOT_FOUND") return reply.code(404).send({ code });
+      if (code === "FORBIDDEN") return reply.code(403).send({ code });
       try {
-        const view = await readReference(runtime.provider, profile.contractId, referenceId);
-        if (view.record?.revoked) return { referenceId, revoked: true };
-        if (!view.record) return reply.code(404).send({ code: "REFERENCE_NOT_FOUND" });
+        const { record } = await readReference(runtime.provider, profile.contractId, referenceId);
+        if (!record) return reply.code(404).send({ code: "REFERENCE_NOT_FOUND" });
+        if (record.issuerId !== runtime.profile.issuerId) return reply.code(403).send({ code: "FORBIDDEN" });
+        if (record.revoked) return { referenceId, revoked: true };
       } catch {
         return reply.code(503).send({ code: "UNAVAILABLE" });
       }
@@ -317,7 +292,6 @@ if (mode === "sandbox") {
   }
   publicOrigin = origin.origin;
 }
-if (process.env.PILOT_ENABLED === "true") registerPilot(app, publicOrigin, { database: envValue("PILOT_DATABASE"), freelancer: envValue("PILOT_FREELANCER_CODE"), agency: envValue("PILOT_AGENCY_CODE") });
 await app.listen({ host: address, port });
 process.stdout.write(`${JSON.stringify({ event: "server_listening", mode, address, port })}\n`);
 void initialize().catch(() => {

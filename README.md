@@ -2,58 +2,39 @@
 
 **Verify the work. Keep the client confidential.**
 
-Freelancers often leave confidential projects out of their portfolios because they cannot share the client name or project files. EVA lets an agency approve one contribution for the freelancer to share. The recruiter checks the agency's approval and current status on NEAR.
+EVA lets an agency approve one contribution from a confidential project for a freelancer to share. A recruiter can check who issued the reference and whether it is still active.
+
+Choose **Open EVA** on the homepage and pick a role.
 
 | Role | What to do |
 | --- | --- |
-| Freelancer | Prepare a request for the agency you worked with. In an enabled pilot, submit it to the agency inbox and check its decision. |
-| Agency | Review requests in the private pilot inbox. Publish approved wording with the operator CLI. The registered Testnet issuer can also revoke from Agency → Connect NEAR Wallet. |
-| Recruiter | Open a reference from a CV or paste it into the verifier. Read the contribution, issuer, and status without an account or wallet. |
-
-The share link contains the approved name or alias and one claim. NEAR stores a salted commitment and revocation status. The agency is responsible for the accuracy and disclosure of its approval.
-
-[Product requirements, roadmap, and business model](docs/product.md) · [Operator guide](docs/operator.md) · [Enable a private pilot](docs/operator.md#private-agency-pilot)
+| Freelancer | Prepare a reference request and copy it to the agency contact you already use. |
+| Agency | Connect a compatible NEAR Testnet wallet, review the wording, and approve the issue transaction. Copy the link after EVA confirms the final record. Open a saved reference and use the issuing wallet to revoke it. |
+| Recruiter | Open the shared link or paste it into the verifier. No account or wallet is needed. |
 
 ## Three ways to try EVA
 
-### 1. Check an issued reference on NEAR Testnet
+### Sample data
 
-Open the verifier, then paste a link from an issuer. A direct reference link opens the same verifier. It checks the claim and reads the current status from NEAR Testnet without a wallet. [Open the verifier](https://evalabs.my.id/verify)
+Open `/demo` and choose **Valid**, **Revoked**, or **Edited**. The guided walkthrough simulates issue and revoke on the same browser sample. The **Sample data** label identifies these results.
 
-Try these two synthetic references. Open **Verification details** to see the issuer, contract, and final block.
+### Local NEAR Sandbox
 
-- [VALID reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYxIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2UtMjYxMTEzLnRlc3RuZXQiLCJldmEtaXNzdWVyLTI2MTExMy50ZXN0bmV0IiwiN2RhMjkyYmQ1ZWVkM2E3ZWQ4NjQwZjQ2N2RlNTVhN2QiLCJqbXUydlV6eklXeDh4QmY2SUNVVGFfTDZGcmt0dk9qQVdyYkVYbkZ0RDVzIiwiQWxleCBNb3JnYW4iLCJEZXNpZ25lZCB0aGUgY2hlY2tvdXQgZmxvdyBmb3IgYSBkZW1vIGUtY29tbWVyY2UgcHJvamVjdC4iXQ.6LybvkLkV0A0fNpl-luwYDTdOZNiBjRk6HGF-VE8E2y_1dGlWhT34g_OopUMZjXgfTw_Ta399bUJh710uh4_BA)
-- [REVOKED reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYxIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2UtMjYxMTEzLnRlc3RuZXQiLCJldmEtaXNzdWVyLTI2MTExMy50ZXN0bmV0IiwiNzI3MTBlNjAwNTNmODkxZjdkNzBiMjk1ODYxNzk2OWEiLCIxdjlIQmxYMGFlMHRmRHZnZmRqQloydU1XODJiSWM3UG1hN1FqTTFualNFIiwiVGF5bG9yIEJyb29rcyIsIkJ1aWx0IGFuIGFjY2Vzc2liaWxpdHkgY2hlY2tsaXN0IGZvciBhIGRlbW8gc3RvcmVmcm9udC4iXQ.T1R2qLRRtQPRux0svkRzLOkpyD8EoHY-0GkzkoltqRnhrZFwZOKn3R_0oTqNva7sxuynpix2bNBXqRPsjMDWAA)
-
-### 2. Try the browser demo
-
-Open the demo and choose **Valid**, **Revoked**, or **Edited** to see the three verification outcomes. In the guided walkthrough, choose **Simulate sample issue**, **Open sample reference**, then **Simulate sample revoke**. The same sample changes from `VALID` to `REVOKED`. The walkthrough uses **Sample data** in the browser. [Open the interactive demo](https://evalabs.my.id/demo)
-
-### 3. Issue and revoke in Docker
-
-Use Docker Engine with Compose, `linux/amd64`, and internet access for the first build.
+Use Docker Engine with Compose on `linux/amd64` and internet access for the first build.
 
 ```sh
 docker compose up
 ```
 
-Open [the local demo](http://127.0.0.1:8080/demo) and choose **Issue a reference**. Approve the synthetic claim, issue it, and open the generated link. See `VALID`, revoke it on the issue page, then refresh the same link to see `REVOKED`. The app labels this flow **Local NEAR Sandbox**. Restarting the Sandbox clears local records.
+Open [the local demo](http://127.0.0.1:8080/demo) and follow the link to `/issue`. Approve the synthetic claim, issue it, and open the generated link to see `VALID`. Revoke it on the issue page and refresh the same link to see `REVOKED`. Docker uses a real contract on **Local NEAR Sandbox** with a local signer. Restarting Sandbox clears its records.
 
 ```sh
-docker compose ps
 docker compose down
 ```
 
-## Testnet deployment
+### NEAR Testnet
 
-| Field | Value |
-| --- | --- |
-| Contract | `eva-reference-261113.testnet` |
-| Issuer | `eva-issuer-261113.testnet` |
-| Contract build source | `8f66e4436039fe20a3ac7ac0898a9827044ffef2` |
-| Deployed WASM SHA-256 | `3181a1f0e80efa879aab4ea1cc74e5dc3381a14af361c6d8e135f73620f468ad` |
-
-The deployed WASM matches the artifact tested in the Judge image. The public verifier showed `VALID` and then `REVOKED` on the same third reference link after refresh. [Deploy and init](https://api-testnet.nearblocks.io/v3/txns/FKiWsV986CHqzPSdp8jxXVF5AdjvhKxnZKkFKJuX4YqG) · [Issue](https://api-testnet.nearblocks.io/v3/txns/E8Ls9aKqHRyq3Mh9SmMvpTQRRAWguerBNzaaxNEPdZto) · [Revoke](https://api-testnet.nearblocks.io/v3/txns/DsqZ4ELhb9zuvod113iuky57vC6KnHnqhKauuaDMdv2b)
+Public evidence for this registry is pending the approved release. The Testnet demo begins on `/agency` with a wallet-funded synthetic reference. Open the link as a recruiter to verify `VALID`, revoke with the same account, then verify `REVOKED` on the same link. The [operator runbook](docs/operator.md#prepare-the-testnet-release) specifies the release checks and evidence to publish.
 
 ## Checks
 
@@ -72,7 +53,7 @@ cargo test --locked --manifest-path backend/contract/Cargo.toml
 cargo near build non-reproducible-wasm --locked --manifest-path backend/contract/Cargo.toml
 docker compose config
 docker compose --env-file .env.example -f compose.vps.yaml config
-EVA_HOST=evalabs.my.id docker compose --env-file .env.example -f compose.vps.yaml -f compose.edge.yaml -f compose.tunnel.yaml config
+EVA_HOST=eva.example.invalid docker compose --env-file .env.example -f compose.vps.yaml -f compose.edge.yaml -f compose.tunnel.yaml config
 ```
 
 For sample E2E, install the pinned Playwright browsers and run the root E2E command. It builds and serves Vite on loopback. To test the actual Judge deployment, start Compose first and run:
@@ -83,14 +64,8 @@ EVA_E2E_ORIGIN=http://127.0.0.1:8080 EVA_E2E_MODE=sandbox pnpm test:e2e
 
 To verify offline startup, build both images before disconnecting. Use a temporary Compose override with an internal default network, then start with up --no-build --pull never. Docker can suppress host publishing on an internal network. Run Playwright with --network container:<frontend-container> so the browser reaches Caddy at 127.0.0.1:8080 and retains a secure context. Check that an outbound request from each service fails. Use down with the same project and Compose files.
 
-The [operator runbook](docs/operator.md) covers the release WASM, CLI, VPS and Testnet verification.
+## What the verifier checks
 
-## Runtime and trust
+The link fragment contains the approved name or alias, one claim, and the fields needed to verify it. Anyone with the link can read it. NEAR stores the issuer account, a commitment to the salted payload, and the revocation flag. The verifier uses the configured network and contract, reads the record at finality, and checks that both the issuer account and SHA-256 commitment match the link. The agency is responsible for the accuracy of the claim and permission to share it. The recruiter evaluates who controls the issuer account and the credibility of the claim.
 
-The public verifier reads a final record from the configured contract and checks the payload signature locally. A contract commitment binds the exact canonical payload bytes. A `VALID` result proves that the configured issuer key signed this statement and the selected registry still marks it active. It does not independently prove the agency's identity, the courier's identity, the truth of the claim, or the client's consent. A URL fragment is visible to its holder and is not encrypted.
-
-If a verification result is unavailable, retry from the same link. If a Sandbox link no longer works after a restart, issue a fresh local reference.
-
-## Reproducibility
-
-See [`docs/product.md`](docs/product.md) for the product contract, P0–P4 sequence, acceptance criteria, and release procedure. The implementation uses React/Vite, Fastify, `near-api-js`, `near-sandbox`, Rust `near-sdk`, and the official `cargo-near` scaffold. Dependency and runtime versions are pinned by manifests, lockfiles, and digests. This repository was created during the NEAR HACKATHON window; no prior EVA code is claimed as new integration work.
+[Product requirements and roadmap](docs/product.md) · [Design](docs/design.md) · [Operator runbook](docs/operator.md)

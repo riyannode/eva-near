@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { parseLinkFragment, verifyReference } from "@eva/backend/reference";
 import type { ReferencePayload, ReferenceProfile, Verification } from "@eva/backend/reference";
-import { testnetExamples } from "./testnetExamples.ts";
 import { getProfile, getReference } from "./api.ts";
 
 export const sources = { sample: "Sample data", sandbox: "Local NEAR Sandbox", testnet: "NEAR Testnet" } as const;
@@ -14,21 +13,21 @@ const messages = {
 };
 const explanations: Record<string, string> = {
   INVALID_LINK: "Open the original reference link. This link is incomplete or malformed.",
-  PROFILE_MISMATCH: "Open the link on the site configured for this issuer.",
+  PROFILE_MISMATCH: "Open the link on the site configured for this network and contract.",
   REFERENCE_NOT_FOUND: "No record was found in the configured registry.",
-  SIGNATURE_INVALID: "Ask the issuer for the original link.",
+  ISSUER_MISMATCH: "Ask the issuer for the original link.",
   COMMITMENT_MISMATCH: "Ask the issuer for the original link.",
-  UNAVAILABLE: "Try again, or open the link in a browser with Ed25519 Web Crypto support.",
+  UNAVAILABLE: "Try again.",
 };
 
-export function ReferenceCard({ payload, issuer, outcome, profile }: {
-  payload?: ReferencePayload; issuer?: string; outcome?: Verification; profile?: ReferenceProfile;
+export function ReferenceCard({ payload, outcome, profile }: {
+  payload?: ReferencePayload; outcome?: Verification; profile?: Pick<ReferenceProfile, "network" | "contractId">;
 }) {
   const valid = outcome?.status === "VALID";
   return <section className="reference" aria-label="Reference">
     {valid && payload && <blockquote>
       <p>{payload.claim}</p>
-      <footer><strong>{payload.subject}</strong><span>Signed by {issuer}</span></footer>
+      <footer><strong>{payload.subject}</strong><span>Issued by {payload.issuerId}</span></footer>
     </blockquote>}
     <div className="verdict" role="status" aria-live="polite">
       {outcome ? <>
@@ -42,7 +41,7 @@ export function ReferenceCard({ payload, issuer, outcome, profile }: {
       <dl>
         <dt>Source</dt><dd>{sources[profile.network]}</dd>
         <dt>Contract</dt><dd>{profile.contractId}</dd>
-        <dt>Issuer</dt><dd>{profile.issuerId}</dd>
+        {payload && <><dt>Issuer</dt><dd>{payload.issuerId}</dd></>}
         {"record" in outcome && outcome.record.blockHeight !== undefined && <>
           <dt>Final block</dt><dd>{outcome.record.blockHeight}</dd>
           <dt>Block hash</dt><dd>{outcome.record.blockHash}</dd>
@@ -58,7 +57,7 @@ export default function Verify() {
   const [pasteError, setPasteError] = useState("");
   const [check, setCheck] = useState(0);
   const [result, setResult] = useState<{
-    profile?: ReferenceProfile; issuer?: string; payload?: ReferencePayload; outcome: Verification;
+    profile?: Pick<ReferenceProfile, "network" | "contractId">; payload?: ReferencePayload; outcome: Verification;
   }>();
   useEffect(() => {
     const change = () => { setResult(undefined); setFragment(window.location.hash); };
@@ -78,8 +77,8 @@ export default function Verify() {
         return;
       }
       const profile = await getProfile(signal);
-      const outcome = await verifyReference(link, profile, id => getReference(id, profile, signal));
-      if (!cancel.signal.aborted) setResult({ profile, issuer: profile.issuerLabel, payload: link.payload, outcome });
+      const outcome = await verifyReference(link, profile, id => getReference(id, signal));
+      if (!cancel.signal.aborted) setResult({ profile, payload: link.payload, outcome });
     }
     void run().catch(() => {
       if (!cancel.signal.aborted) setResult({ outcome: { status: "UNAVAILABLE", code: "UNAVAILABLE" } });
@@ -121,7 +120,7 @@ export default function Verify() {
         </div>
       </>}
       </div>
-      {!fragment && <section className="workspace-aside"><h2>Public Testnet examples</h2><p>Open a synthetic reference on the public verifier to check its current status on NEAR Testnet.</p><div className="actions">{testnetExamples.map(example => <a className="button" key={example.label} href={example.url} target="_blank" rel="noreferrer">{example.label}</a>)}</div></section>}
+
       </div>
     </main>;
 }

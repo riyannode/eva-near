@@ -1,212 +1,282 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { NearConnector, NearWalletBase } from "@hot-labs/near-connect";
-import { parseLinkFragment, verifyReference } from "@eva/backend/reference";
+import { createPayload, createShareLink, encodePayload, parseLinkFragment, randomReferenceId, randomSalt, sha256Hex, verifyReference } from "@eva/backend/reference";
 import type { ParsedLink } from "@eva/backend/reference";
 import { getProfile, getReference } from "./api.ts";
 import type { AppProfile } from "./api.ts";
 
 let connector: NearConnector | undefined;
+let injectedWallet: typeof import("@hot-labs/near-connect").InjectedWallet | undefined;
+let sandboxWallet: typeof import("@hot-labs/near-connect").SandboxWallet | undefined;
+const meteorExecutor = "/wallet/meteor-near-connect.js";
+const meteorWalletId = "meteor-wallet";
+function eligible(option: NearWalletBase): boolean {
+  if (injectedWallet && option instanceof injectedWallet) return option.manifest.type === "injected";
+  return Boolean(sandboxWallet && option instanceof sandboxWallet && option.manifest.id === meteorWalletId
+    && option.manifest.executor === meteorExecutor && !option.manifest.debug);
+}
+type Intent = { link: string; parsed: ParsedLink; commitment: string };
 
 export default function AgencyWallet() {
   const [profile, setProfile] = useState<AppProfile>();
   const [wallets, setWallets] = useState<NearWalletBase[]>([]);
   const [wallet, setWallet] = useState<NearWalletBase>();
+  const [accounts, setAccounts] = useState<string[]>([]);
   const [account, setAccount] = useState("");
+  const [subject, setSubject] = useState("");
+  const [claim, setClaim] = useState("");
+  const [approved, setApproved] = useState(false);
   const [input, setInput] = useState("");
-  const [reference, setReference] = useState<ParsedLink>();
+  const [intent, setIntent] = useState<Intent>();
   const [verdict, setVerdict] = useState<"VALID" | "REVOKED">();
+  const [pending, setPending] = useState<"issue" | "revoke">();
+  const [canRetry, setCanRetry] = useState(false);
+  const [definiteFailure, setDefiniteFailure] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState("");
-  const [transactionHash, setTransactionHash] = useState("");
   const [scanned, setScanned] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    void getProfile(controller.signal).then(setProfile, () => {
-      if (!controller.signal.aborted) setMessage("Could not load the NEAR issuer configuration. Reload this page to try again.");
-    });
+    void getProfile(controller.signal).then(setProfile, () => { if (!controller.signal.aborted) setMessage("Configuration unavailable. Reload to try again."); });
     return () => controller.abort();
   }, []);
-
   useEffect(() => {
-    const activeConnector = connector;
-    if (!activeConnector || !scanned) return;
-    const refresh = () => setWallets([...activeConnector.availableWallets]);
-    activeConnector.on("selector:walletsChanged", refresh);
-    refresh();
-    return () => activeConnector.off("selector:walletsChanged", refresh);
+    const active = connector;
+    if (!active || !scanned) return;
+    const refresh = () => setWallets(active.availableWallets.filter(eligible));
+    active.on("selector:walletsChanged", refresh); refresh();
+    return () => active.off("selector:walletsChanged", refresh);
   }, [scanned]);
 
   async function findWallets() {
-    setBusy(true);
-    setMessage("");
+    if (location.search || location.hash) history.replaceState(history.state, "", location.pathname);
+    setBusy(true); setMessage("");
     try {
       if (!connector) {
-        const { NearConnector: Connector } = await import("@hot-labs/near-connect");
-        connector = new Connector({
-          network: "testnet",
-          autoConnect: false,
-          manifest: { wallets: [], version: "1.0.0" },
-          features: { signInWithoutAddKey: true, signAndSendTransaction: true },
-          footerBranding: null,
-        });
+        const { NearConnector: Connector, InjectedWallet, SandboxWallet } = await import("@hot-labs/near-connect");
+        injectedWallet = InjectedWallet; sandboxWallet = SandboxWallet;
+        connector = new Connector({ network: "testnet", autoConnect: false, manifest: { wallets: [{
+          id: meteorWalletId, name: "Meteor Wallet", type: "sandbox", executor: meteorExecutor,
+          version: "1.1.1", platform: [], icon: "", description: "NEAR wallet", website: "https://meteorwallet.app/",
+          permissions: { storage: true, external: ["meteorCom", "meteorComV2"], allowsOpen: ["https://chromewebstore.google.com", "https://wallet.meteorwallet.app", "https://meteorwallet.app", "meteorwallet://", "meteorwalletdev://"] },
+          features: { testnet: true, mainnet: true, signInWithoutAddKey: true, signAndSendTransaction: true, signInAndSignMessage: false, signInWithFunctionCallKey: false, signMessage: false, signTransaction: false, signAndSendTransactions: false, signDelegateActions: false },
+        }], version: "1.0.0" }, cspNonce: document.querySelector<HTMLMetaElement>('meta[name="eva-csp-nonce"]')?.content, features: { signInWithoutAddKey: true, signAndSendTransaction: true }, footerBranding: null });
       }
       await connector.whenManifestLoaded;
       setScanned(true);
-      setWallets([...connector.availableWallets]);
-    } catch {
-      setMessage("Could not start the NEAR wallet connector. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    } catch { setMessage("Could not start the wallet connector."); } finally { setBusy(false); }
   }
-
   async function connect(option: NearWalletBase) {
     if (!connector) return;
     setBusy(true);
-    setMessage("");
     try {
-      const connected = await connector.connect({ walletId: option.manifest.id });
-      const accounts = await connected.getAccounts({ network: "testnet" });
-      const selected = accounts.find(item => item.accountId === profile?.issuerId) ?? accounts[0];
-      if (!selected) throw new Error("NO_ACCOUNT");
+      let authorized: string[] = [];
+      const onSignIn = (event: { wallet: NearWalletBase; accounts: { accountId: string }[] }) => {
+        if (event.wallet === option) authorized = event.accounts.map(item => item.accountId);
+      };
+      connector.on("wallet:signIn", onSignIn);
+      let connected: NearWalletBase;
+      try { connected = await connector.connect({ walletId: option.manifest.id }); }
+      finally { connector.off("wallet:signIn", onSignIn); }
+      if (connected !== option) throw new Error("WALLET_CHANGED");
+      const found = option.manifest.id === meteorWalletId ? authorized : (await connected.getAccounts({ network: "testnet" })).map(item => item.accountId);
+      if (!found.length || (option.manifest.id === meteorWalletId && found.length !== 1)) throw new Error("NO_ACCOUNT");
       setWallet(connected);
-      setAccount(selected.accountId);
+      setAccounts(found);
+      setAccount(found[0]);
+      setMessage("");
     } catch {
-      setMessage("Wallet connection was cancelled or failed. Choose a wallet to try again.");
+      setMessage("Wallet connection was cancelled or failed.");
     } finally {
       setBusy(false);
     }
   }
-
   async function disconnect() {
     if (!connector || !wallet) return;
     setBusy(true);
-    try {
-      await connector.disconnect(wallet);
-      setWallet(undefined);
-      setAccount("");
-      setMessage("");
-    } catch {
-      setMessage("The wallet could not disconnect. Try again in your wallet.");
-    } finally {
-      setBusy(false);
-    }
+    try { await connector.disconnect(wallet); setWallet(undefined); setAccounts([]); setAccount(""); }
+    catch { setMessage("Could not disconnect the wallet. Try again."); }
+    finally { setBusy(false); }
   }
-
-  async function read(link: ParsedLink, config: AppProfile, awaitingFinal = pending) {
-    const result = await verifyReference(link, config, id => getReference(id, config));
-    if (result.status !== "VALID" && result.status !== "REVOKED") {
+  async function read(current: Intent, action?: "issue" | "revoke") {
+    if (!profile) return;
+    setCanRetry(false);
+    const result = await verifyReference(current.parsed, profile, id => getReference(id));
+    if (result.status === "VALID" || result.status === "REVOKED") {
+      setVerdict(result.status);
+      if ((action === "issue" && result.status === "VALID") || (action === "revoke" && result.status === "REVOKED")) {
+        setPending(undefined); if (action === "issue") setInput(current.link); setMessage(action === "issue" ? "Reference confirmed on final state." : "Revocation confirmed on final state.");
+      } else if (action === "issue" && result.status === "REVOKED") { setPending(undefined); setMessage("This reference was revoked. Create a new reference."); }
+      else if (action) { setCanRetry(action === "revoke" && result.status === "VALID"); setMessage("Final state has not confirmed the action. You may retry the same transaction."); }
+      else setMessage("");
+    } else {
       setVerdict(undefined);
-      setMessage(result.status === "INVALID" ? "This reference could not be verified for the configured issuer." : "NEAR status is unavailable. Check again before taking action.");
-      return;
+      if (action === "issue" && result.status === "INVALID" && result.code === "REFERENCE_NOT_FOUND") setCanRetry(true);
+      else if (action && result.status === "INVALID") { setPending(undefined); setMessage("This reference conflicts with the final record. Create a new reference."); return; }
+      setMessage(result.status === "UNAVAILABLE" ? "Final state is unavailable. Check again before retrying." : action ? "No matching final record yet. Check again before retrying." : "This reference could not be verified.");
     }
-    setVerdict(result.status);
-    if (result.status === "REVOKED") setPending(false);
-    setMessage(result.status === "VALID" && awaitingFinal ? "The final record is still active. Check again after the transaction has settled." : "");
   }
-
-  async function checkReference(event: FormEvent<HTMLFormElement>) {
+  async function issue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!profile || busy) return;
+    if (!wallet || !profile || !account || busy || pending || !approved) return;
     setBusy(true);
-    setMessage("");
     try {
-      const text = input.trim();
-      const url = text.startsWith("#r=") ? undefined : new URL(text);
-      if (url && (url.origin !== location.origin || url.pathname !== "/verify" || url.search || url.username || url.password)) throw new Error("INVALID_LINK");
-      const link = parseLinkFragment(url?.hash ?? text);
-      setReference(link);
-      await read(link, profile);
-    } catch {
-      setReference(undefined);
-      setVerdict(undefined);
-      setMessage("Paste a /verify link from this site or its #r= fragment.");
-    } finally {
-      setBusy(false);
-    }
+      const payload = createPayload({ ...profile, issuerId: account }, {
+        referenceId: randomReferenceId(), salt: randomSalt(), subject, claim,
+      });
+      const payloadBytes = encodePayload(payload);
+      const current = {
+        link: createShareLink(location.origin, payloadBytes),
+        parsed: { payload, payloadBytes },
+        commitment: await sha256Hex(payloadBytes),
+      };
+      setIntent(current); setInput(""); setVerdict(undefined);
+      await send(current, "issue");
+    } catch { setMessage("Check the name and claim; they must fit the reference format."); } finally { setBusy(false); }
   }
-
-  async function revoke() {
-    if (!wallet || !profile || !reference || account !== profile.issuerId || verdict !== "VALID" || busy || pending) return;
-    setBusy(true);
-    setPending(true);
-    setMessage("Review the revocation in your wallet.");
+  async function send(current: Intent, action: "issue" | "revoke") {
+    if (!wallet || !profile || account !== current.parsed.payload.issuerId) return;
+    if (location.search || location.hash) history.replaceState(history.state, "", location.pathname);
+    setCanRetry(false);
+    setDefiniteFailure(false);
+    setPending(action);
+    setVerdict(undefined);
+    setMessage("Review the transaction in your wallet.");
     try {
-      const accounts = await wallet.getAccounts({ network: "testnet" });
-      if (!accounts.some(item => item.accountId === profile.issuerId)) {
-        setPending(false);
-        setMessage("Switch to the registered issuer account in your wallet.");
+      const found = await wallet.getAccounts({ network: "testnet" });
+      if (!found.some(item => item.accountId === account)) {
+        setMessage("Reconnect the issuing account, then check final state.");
         return;
       }
+      const reference_id = current.parsed.payload.referenceId;
       const result = await wallet.signAndSendTransaction({
         network: "testnet",
-        signerId: profile.issuerId,
+        signerId: account,
         receiverId: profile.contractId,
-        actions: [{ type: "FunctionCall", params: { methodName: "revoke", args: { reference_id: reference.payload.referenceId }, gas: "30000000000000", deposit: "0" } }],
+        actions: [{ type: "FunctionCall", params: {
+          methodName: action,
+          args: action === "issue" ? { reference_id, commitment: current.commitment } : { reference_id },
+          gas: "60000000000000",
+          deposit: action === "issue" ? "10000000000000000000000" : "0",
+        } }],
       });
       if (typeof result?.status === "object" && result.status && "Failure" in result.status) {
-        setPending(false);
-        setMessage("NEAR rejected the transaction. Check the reference before retrying.");
-        setVerdict(undefined);
+        setDefiniteFailure(true);
+        setMessage("Transaction failed. Check final state before retrying.");
         return;
       }
-      if (result?.transaction?.hash) setTransactionHash(result.transaction.hash);
-      await read(reference, profile, true);
-    } catch {
-      setMessage("The wallet did not confirm a result. Check the reference before signing again.");
-    } finally {
-      setBusy(false);
+      setMessage("Transaction submitted. Waiting for final state.");
+      await read(current, action);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      if (/reject|cancel|denied/i.test(text)) { setDefiniteFailure(true); setMessage("Wallet request rejected. Check final state before retrying."); }
+      else setMessage("Transaction result is unknown. Check final state before retrying.");
+      setVerdict(undefined);
     }
   }
-
-  const isTestnet = profile?.network === "testnet";
+  async function checkReference(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!profile || busy || pending) return;
+    setBusy(true);
+    try {
+      const text = input.trim(); const url = text.startsWith("#r=") ? undefined : new URL(text);
+      if (url && (url.origin !== location.origin || url.pathname !== "/verify" || url.search || url.username || url.password)) throw new Error("INVALID_LINK");
+      const parsed = parseLinkFragment(url?.hash ?? text);
+      const current = { link: location.origin + "/verify" + (url?.hash ?? text), parsed, commitment: await sha256Hex(parsed.payloadBytes) };
+      setIntent(current); await read(current);
+    } catch { setIntent(undefined); setVerdict(undefined); setMessage("Paste a /verify link from this site or its #r= fragment."); } finally { setBusy(false); }
+  }
   return <main id="main" tabIndex={-1} className="workspace">
-    <p className="eyebrow">{profile?.network === "sandbox" ? "Local NEAR Sandbox" : "Agency · NEAR Testnet"}</p>
-    <h1>Manage an issued reference</h1>
-    <p className="lede">Connect the registered issuer’s wallet, then check the reference you want to revoke.</p>
-    <div className="verify-grid">
-      <section className="role-section" aria-labelledby="wallet-title">
-        <h2 id="wallet-title">Issuer wallet</h2>
-        {!profile && <p>{message || "Loading the issuer configuration…"}</p>}
-        {profile?.network === "sandbox" && <p>This preview uses a local issuer. <a href="/issue">Open Local NEAR Sandbox</a>.</p>}
-        {isTestnet && <>
-          <p className="fine-print">Registered issuer <strong className="identifier">{profile.issuerId}</strong></p>
-          {account ? <>
-            <p className="identifier">{account}</p>
-            {account !== profile.issuerId && <p>This account cannot revoke the agency’s references.</p>}
-            <button type="button" disabled={busy} onClick={() => void disconnect()}>Disconnect wallet</button>
-          </> : <>
-            <button className="primary" type="button" disabled={busy} onClick={() => void findWallets()}>Connect NEAR Wallet</button>
-            {scanned && (wallets.length ? <div className="actions" aria-label="Detected Testnet wallets">
-              {wallets.map(option => <button key={option.manifest.id} type="button" disabled={busy} onClick={() => void connect(option)}>{option.manifest.name}</button>)}
-            </div> : <p>No compatible Testnet wallet detected. Open your NEAR wallet extension and return to this page.</p>)}
-          </>}
+    <p className="eyebrow">{profile?.network === "sandbox" ? "Local NEAR Sandbox" : "Agency"}</p>
+    <h1>Issue a work reference</h1>
+    <p className="lede">Approve the wording and issue it with your agency wallet. Share the link with the freelancer.</p>
+    {profile?.network === "sandbox" && <p><a href="/issue">Issue in Local NEAR Sandbox</a></p>}
+    {profile?.network === "testnet" && <div className="verify-grid">
+      <section className="role-section agency-issue">
+        <h2>Agency wallet</h2>
+        <p className="fine-print">NEAR Testnet</p>
+        {!wallet ? <>
+          <button className="primary" disabled={busy} onClick={() => void findWallets()}>Connect NEAR Wallet</button>
+          {scanned && (wallets.length ? <div className="actions">
+            {wallets.map(option => <button key={option.manifest.id} disabled={busy} onClick={() => void connect(option)}>{option.manifest.name}</button>)}
+          </div> : <p>No compatible Testnet wallet detected.</p>)}
+        </> : <>
+          <label htmlFor="account">Issuer account</label>
+          <div className="agency-account">
+            <select id="account" value={account} disabled={busy} onChange={event => setAccount(event.target.value)}>
+              {accounts.map(id => <option key={id}>{id}</option>)}
+            </select>
+            <button disabled={busy} onClick={() => void disconnect()}>Disconnect wallet</button>
+          </div>
         </>}
-        <p role="status" className="wallet-message">{message}</p>
-      </section>
-      {isTestnet && <section className="workspace-aside" aria-labelledby="wallet-reference">
-        <h2 id="wallet-reference">Reference status</h2>
-        <form className="request-form" onSubmit={checkReference}>
-          <label htmlFor="wallet-link">Reference link</label>
-          <input id="wallet-link" autoComplete="off" required value={input} disabled={busy || pending} onChange={event => { setInput(event.target.value); setReference(undefined); setVerdict(undefined); setTransactionHash(""); setMessage(""); }} />
-          <button type="submit" disabled={busy}>Check reference</button>
+        <form className="request-form" onSubmit={event => void issue(event)}>
+          <label htmlFor="subject">Professional name or alias</label>
+          <input id="subject" required maxLength={80} value={subject} onChange={event => { setSubject(event.target.value); setApproved(false); }} />
+          <label htmlFor="claim">Approved contribution</label>
+          <textarea id="claim" required maxLength={240} rows={3} value={claim} onChange={event => { setClaim(event.target.value); setApproved(false); }} />
+          <label className="approval">
+            <input type="checkbox" checked={approved} onChange={event => setApproved(event.target.checked)} />
+            I approve this wording for sharing.
+          </label>
+          <button className="primary" disabled={!wallet || busy || !!pending || !approved}>Issue reference</button>
         </form>
-        {transactionHash && <p className="fine-print">Transaction <span className="identifier">{transactionHash}</span></p>}
-        {reference && verdict && <div className="wallet-reference">
-          <span className={"status " + verdict.toLowerCase()}>{verdict}</span>
-          <p>{reference.payload.claim}</p>
-          <p className="fine-print">{reference.payload.subject}</p>
+      </section>
+      <section className="workspace-aside">
+        <h2>Check or manage a reference</h2>
+        <form className="request-form" onSubmit={event => void checkReference(event)}>
+          <label htmlFor="wallet-link">Reference link</label>
+          <input id="wallet-link" required value={input} disabled={busy || !!pending}
+            onChange={event => { setInput(event.target.value); setIntent(undefined); setVerdict(undefined); }} />
+          <button disabled={busy || !!pending}>Check reference</button>
+        </form>
+        {message && <p role="status">{message}</p>}
+        {intent && pending && <div className="actions">
+          <button disabled={busy} onClick={() => { setBusy(true); void read(intent, pending).finally(() => setBusy(false)); }}>Check final status</button>
+          {canRetry && account === intent.parsed.payload.issuerId && <button disabled={busy} onClick={() => {
+            setBusy(true);
+            void (async () => {
+              const check = await verifyReference(intent.parsed, profile, id => getReference(id));
+              if ((pending === "issue" && check.status === "INVALID" && check.code === "REFERENCE_NOT_FOUND")
+                || (pending === "revoke" && check.status === "VALID")) await send(intent, pending);
+              else await read(intent, pending);
+            })().finally(() => setBusy(false));
+          }}>Retry same transaction</button>}
+          {pending === "issue" && canRetry && definiteFailure && <button disabled={busy} onClick={() => {
+            setPending(undefined);
+            setIntent(undefined);
+            setCanRetry(false);
+            setMessage("You can prepare a new reference.");
+          }}>Start a new reference</button>}
         </div>}
-        {account === profile.issuerId && verdict === "VALID" && <details>
-          <summary>Revoke this reference</summary>
-          <p>Revocation is permanent. Anyone holding the reference can still read its wording.</p>
-          <button className="primary" type="button" disabled={busy || pending} onClick={() => void revoke()}>Confirm revoke in wallet</button>
-        </details>}
-      </section>}
-    </div>
-    <a className="workspace-back" href="/agency">Back to Agency</a>
+        {intent && verdict && <div className="agency-result">
+          <span className={"status " + verdict.toLowerCase()}>{verdict}</span>
+          <p>{intent.parsed.payload.claim}</p>
+          <p>Issuer: {intent.parsed.payload.issuerId}</p>
+          {verdict === "VALID" && <>
+            <label htmlFor="issued-link">Verified reference link</label>
+            <textarea id="issued-link" readOnly value={intent.link} />
+            <div className="actions">
+              <button type="button" onClick={() => {
+                void navigator.clipboard.writeText(intent.link).then(
+                  () => setMessage("Reference link copied."),
+                  () => setMessage("Select and copy the reference link."),
+                );
+              }}>Copy link</button>
+              <a className="button" href={intent.link}>Open reference</a>
+            </div>
+            {account === intent.parsed.payload.issuerId && <details>
+              <summary>Revoke this reference</summary>
+              <p>Revocation is permanent.</p>
+              <button disabled={busy || !!pending} onClick={() => {
+                setBusy(true);
+                void send(intent, "revoke").finally(() => setBusy(false));
+              }}>Confirm revoke in wallet</button>
+            </details>}
+          </>}
+        </div>}
+      </section>
+    </div>}
+    {(!profile || profile.network === "sandbox") && <p role="status">{message || (!profile ? "Loading Agency workspace…" : "")}</p>}
   </main>;
 }

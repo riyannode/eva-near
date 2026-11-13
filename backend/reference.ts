@@ -1,7 +1,7 @@
 export type Network = "sample" | "sandbox" | "testnet";
 
 export interface ReferencePayload {
-  readonly version: "eva:reference:v1";
+  readonly version: "eva:reference:v2";
   readonly network: Network;
   readonly contractId: string;
   readonly issuerId: string;
@@ -18,9 +18,8 @@ export interface ReferenceProfile {
 }
 
 export interface ReferenceRecord {
-  readonly issuerId: string;
-  readonly issuerKey: string;
   readonly record: null | {
+    readonly issuerId: string;
     readonly commitment: string;
     readonly revoked: boolean;
   };
@@ -31,7 +30,6 @@ export interface ReferenceRecord {
 export interface ParsedLink {
   readonly payload: ReferencePayload;
   readonly payloadBytes: Uint8Array;
-  readonly signature: Uint8Array;
 }
 
 export type Verification =
@@ -60,7 +58,7 @@ function validateText(value: string, maxBytes: number): void {
   if (size < 1 || size > maxBytes) throw new Error("INVALID_INPUT");
 }
 
-function isAccountId(value: string): boolean {
+export function isAccountId(value: string): boolean {
   return value.length >= 2 && value.length <= 64 && /^[a-z0-9]+(?:[-_][a-z0-9]+)*(?:\.[a-z0-9]+(?:[-_][a-z0-9]+)*)*$/u.test(value);
 }
 
@@ -79,7 +77,7 @@ function decodeBase64url(value: string): Uint8Array {
 }
 
 function assertPayload(payload: ReferencePayload): void {
-  if (payload.version !== "eva:reference:v1" || !["sample", "sandbox", "testnet"].includes(payload.network)) {
+  if (payload.version !== "eva:reference:v2" || !["sample", "sandbox", "testnet"].includes(payload.network)) {
     throw new Error("INVALID_LINK");
   }
   if (!isAccountId(payload.contractId) || !isAccountId(payload.issuerId)) throw new Error("INVALID_LINK");
@@ -96,7 +94,7 @@ export function createPayload(
   fields: { readonly referenceId: string; readonly salt: string; readonly subject: string; readonly claim: string },
 ): ReferencePayload {
   const payload: ReferencePayload = {
-    version: "eva:reference:v1",
+    version: "eva:reference:v2",
     ...profile,
     referenceId: fields.referenceId,
     salt: fields.salt,
@@ -154,19 +152,16 @@ function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
 export function parseLinkFragment(fragment: string): ParsedLink {
   if (fragment.length < 4 || fragment.length > 2051 || !fragment.startsWith("#r=")) throw new Error("INVALID_LINK");
   const encoded = fragment.slice(3);
-  if (encoded.length > 2048 || encoded.split(".").length !== 2) throw new Error("INVALID_LINK");
-  const [payload64, signature64] = encoded.split(".");
-  const payloadBytes = decodeBase64url(payload64);
-  const signature = decodeBase64url(signature64);
-  if (signature.byteLength !== 64) throw new Error("INVALID_LINK");
-  return { payload: parsePayloadBytes(payloadBytes), payloadBytes, signature };
+  if (encoded.length > 2048) throw new Error("INVALID_LINK");
+  const payloadBytes = decodeBase64url(encoded);
+  return { payload: parsePayloadBytes(payloadBytes), payloadBytes };
 }
 
-export function createShareLink(origin: string, payloadBytes: Uint8Array, signature: Uint8Array): string {
-  if (signature.byteLength !== 64) throw new Error("INVALID_INPUT");
-  const encoded = `${base64url(payloadBytes)}.${base64url(signature)}`;
+export function createShareLink(origin: string, payloadBytes: Uint8Array): string {
+  parsePayloadBytes(payloadBytes);
+  const encoded = base64url(payloadBytes);
   if (encoded.length > 2048) throw new Error("INVALID_INPUT");
-  return `${origin}/verify#r=${encoded}`;
+  return origin + "/verify#r=" + encoded;
 }
 
 export function randomReferenceId(): string {
@@ -184,11 +179,11 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 
 export async function verifyReference(
   link: ParsedLink,
-  expected: ReferenceProfile,
+  expected: Pick<ReferenceProfile, "network" | "contractId">,
   readStatus: (referenceId: string) => Promise<ReferenceRecord>,
 ): Promise<Verification> {
-  const { payload, payloadBytes, signature } = link;
-  if (payload.network !== expected.network || payload.contractId !== expected.contractId || payload.issuerId !== expected.issuerId) {
+  const { payload, payloadBytes } = link;
+  if (payload.network !== expected.network || payload.contractId !== expected.contractId) {
     return { status: "INVALID", code: "PROFILE_MISMATCH" };
   }
   if (typeof globalThis.crypto === "undefined" || !globalThis.crypto.subtle) {
@@ -200,21 +195,8 @@ export async function verifyReference(
   } catch {
     return { status: "UNAVAILABLE", code: "UNAVAILABLE" };
   }
-  if (record.issuerId !== expected.issuerId) {
-    return { status: "UNAVAILABLE", code: "UNAVAILABLE" };
-  }
   if (!record.record) return { status: "INVALID", code: "REFERENCE_NOT_FOUND" };
-  if (!/^[A-Za-z0-9_-]{43}$/u.test(record.issuerKey)) return { status: "UNAVAILABLE", code: "UNAVAILABLE" };
-  let validSignature: boolean;
-  try {
-    const keyBytes = decodeBase64url(record.issuerKey);
-    if (keyBytes.byteLength !== 32) return { status: "UNAVAILABLE", code: "UNAVAILABLE" };
-    const key = await crypto.subtle.importKey("raw", Uint8Array.from(keyBytes), { name: "Ed25519" }, false, ["verify"]);
-    validSignature = await crypto.subtle.verify({ name: "Ed25519" }, key, Uint8Array.from(signature), Uint8Array.from(payloadBytes));
-  } catch {
-    return { status: "UNAVAILABLE", code: "UNAVAILABLE" };
-  }
-  if (!validSignature) return { status: "INVALID", code: "SIGNATURE_INVALID" };
+  if (record.record.issuerId !== payload.issuerId) return { status: "INVALID", code: "ISSUER_MISMATCH" };
   if (!/^[a-f0-9]{64}$/u.test(record.record.commitment)) return { status: "UNAVAILABLE", code: "UNAVAILABLE" };
   try {
     if (await sha256Hex(payloadBytes) !== record.record.commitment) {

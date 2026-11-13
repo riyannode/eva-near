@@ -20,6 +20,19 @@
 			}
 		}
 	}
+	@agency expression `(path("/agency") || path("/agency/wallet")) && "{$EVA_MODE:testnet}" == "testnet"`
+	handle @agency {
+		templates
+		rewrite * /agency.html
+		file_server
+	}
+	@meteor expression `path("/wallet/meteor-near-connect.js") && "{$EVA_MODE:testnet}" == "testnet"`
+	handle @meteor {
+		rewrite * /meteor-near-connect.js
+		header Content-Type "application/javascript"
+		header Cache-Control no-store
+		file_server
+	}
 	@screen expression `path("/") || path("/project") || path("/freelancer") || path("/agency") || path("/agency/wallet") || path("/recruiter") || path("/demo") || path("/verify") || (path("/issue") && "{$EVA_MODE:testnet}" == "sandbox")`
 	handle @screen {
 		rewrite * /index.html
