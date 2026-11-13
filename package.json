@@ -1,0 +1,16 @@
+{
+  "name": "eva",
+  "private": true,
+  "packageManager": "pnpm@12.18.0",
+  "engines": { "node": "26.13.1" },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "build": "pnpm -r build && cargo near build non-reproducible-wasm --locked --manifest-path backend/contract/Cargo.toml",
+    "test": "pnpm -r test && cargo test --locked --manifest-path backend/contract/Cargo.toml",
+    "test:e2e": "pnpm --filter @eva/frontend test:e2e",
+    "wasm": "cargo near build non-reproducible-wasm --locked --manifest-path backend/contract/Cargo.toml",
+    "dev": "pnpm --filter @eva/backend dev",
+    "preview": "pnpm --filter @eva/frontend preview"
+  }
+}

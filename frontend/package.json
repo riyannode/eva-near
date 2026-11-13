@@ -1,0 +1,26 @@
+{
+  "name": "@eva/frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "build": "vite build",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@eva/backend": "workspace:*",
+    "@vitejs/plugin-react": "6.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vite": "8.3.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "oxlint": "1.93.0",
+    "typescript": "7.0.2"
+  }
+}
