@@ -47,7 +47,7 @@ for (const width of [360, 1280]) {
   });
 }
 
-test("product entry, local copy request and same-origin pasted verifier link", async ({ page }) => {
+test("landing entry, project workflow and same-origin pasted verifier link", async ({ page }) => {
   const apiRequests: string[] = [];
   page.on("request", request => {
     const url = new URL(request.url());
@@ -57,9 +57,21 @@ test("product entry, local copy request and same-origin pasted verifier link", a
     }
   });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Verify the work. Keep the client confidential." })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Verify a reference" })).toHaveAttribute("href", "/verify");
-  await expect(page.getByRole("link", { name: "Active contribution · Alex Morgan" })).toHaveAttribute("href", /^https:\/\/evalabs\.my\.id\/verify#r=/);
+  await expect(page.getByRole("heading", { name: "Show what you did on a confidential project", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open EVA", exact: true })).toHaveAttribute("href", "/project");
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Demo" })).toHaveAttribute("href", "/demo");
+  await expect(page.getByRole("link", { name: "Check a reference" })).toHaveAttribute("href", "/verify");
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect(page.getByRole("heading", { name: "Show what you did on a confidential project", exact: true })).toBeInViewport();
+  const sample = page.getByRole("figure");
+  await expect(sample.getByText("Designed the checkout flow for an online store.")).toBeInViewport();
+  await expect(sample.getByText("Studio A")).toBeInViewport();
+  await expect(sample.getByText("Client name and project files stay private.")).toBeInViewport();
+  await page.getByRole("link", { name: "Open EVA", exact: true }).click();
+  await expect(page).toHaveURL(/\/project$/);
   await page.getByLabel("Professional name or alias").fill("Jordan Lee");
   await page.getByLabel("Contribution to approve").fill("Built an accessible checkout flow.");
   await expect(page.getByText(/No client name or project files are needed/)).toBeVisible();

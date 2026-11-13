@@ -39,7 +39,7 @@ export default function Demo() {
   }, [fixture, example, guidedStep]);
 
   return <>
-    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/">Product</a><a href="/demo" aria-current="page">Sample demo</a><a href="/verify">Verify a link</a></nav><span>Sample data</span></header>
+    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/project">Project</a><a href="/demo" aria-current="page">Sample demo</a><a href="/verify">Verify a link</a></nav><span>Sample data</span></header>
     <main>
       <p className="eyebrow">Sample data · Interactive status examples</p>
       <h1>Verify the work.<br />Keep the client confidential.</h1>

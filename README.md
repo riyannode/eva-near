@@ -8,14 +8,14 @@ EVA gives a recruiter one agency-signed contribution statement to verify. The sh
 
 ### 1. Use the live Testnet verifier
 
-Open EVA and choose **Verify a reference**, then paste a link from an issuer. A direct reference link opens the same verifier. It checks the claim and reads the current status from NEAR Testnet without a wallet. [Open EVA](https://evalabs.my.id/)
+Open the verifier, then paste a link from an issuer. A direct reference link opens the same verifier. It checks the claim and reads the current status from NEAR Testnet without a wallet. [Open the verifier](https://evalabs.my.id/verify)
 
 Try these two synthetic references. Open **Verification details** to see the issuer, contract, and final block.
 
 - [VALID reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYxIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2UtMjYxMTEzLnRlc3RuZXQiLCJldmEtaXNzdWVyLTI2MTExMy50ZXN0bmV0IiwiN2RhMjkyYmQ1ZWVkM2E3ZWQ4NjQwZjQ2N2RlNTVhN2QiLCJqbXUydlV6eklXeDh4QmY2SUNVVGFfTDZGcmt0dk9qQVdyYkVYbkZ0RDVzIiwiQWxleCBNb3JnYW4iLCJEZXNpZ25lZCB0aGUgY2hlY2tvdXQgZmxvdyBmb3IgYSBkZW1vIGUtY29tbWVyY2UgcHJvamVjdC4iXQ.6LybvkLkV0A0fNpl-luwYDTdOZNiBjRk6HGF-VE8E2y_1dGlWhT34g_OopUMZjXgfTw_Ta399bUJh710uh4_BA)
 - [REVOKED reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYxIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2UtMjYxMTEzLnRlc3RuZXQiLCJldmEtaXNzdWVyLTI2MTExMy50ZXN0bmV0IiwiNzI3MTBlNjAwNTNmODkxZjdkNzBiMjk1ODYxNzk2OWEiLCIxdjlIQmxYMGFlMHRmRHZnZmRqQloydU1XODJiSWM3UG1hN1FqTTFualNFIiwiVGF5bG9yIEJyb29rcyIsIkJ1aWx0IGFuIGFjY2Vzc2liaWxpdHkgY2hlY2tsaXN0IGZvciBhIGRlbW8gc3RvcmVmcm9udC4iXQ.T1R2qLRRtQPRux0svkRzLOkpyD8EoHY-0GkzkoltqRnhrZFwZOKn3R_0oTqNva7sxuynpix2bNBXqRPsjMDWAA)
 
-Freelancers can prepare a reference request on the homepage and copy it to send to the agency they worked with. The configured agency approves the claim, issues the signed link, and can revoke it with the local operator CLI. [Operator instructions](docs/operator.md)
+Freelancers can prepare a reference request on the Project page and copy it to send to the agency they worked with. The configured agency approves the claim, issues the signed link, and can revoke it with the local operator CLI. [Operator instructions](docs/operator.md)
 
 ### 2. Try the browser demo
 

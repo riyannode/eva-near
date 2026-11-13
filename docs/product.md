@@ -4,7 +4,7 @@ Versi 1.0 | 12 November 2026 WIB | Scope disepakati, implementasi belum dimulai
 
 Pembaruan navigasi produk, 13 November 2026
 
-- Halaman utama menyediakan pintu masuk untuk verifikasi link, persiapan permintaan freelancer, dan panduan penerbit. Draft permintaan disalin untuk dikirim melalui kanal agensi yang sudah dipakai. EVA tidak mengirim permintaan.
+- Halaman utama menjelaskan EVA dan mengarahkan pengunjung ke verifikasi, demo, atau halaman Project. Halaman `/project` memuat form permintaan freelancer dan panduan penerbit. Draft permintaan disalin untuk dikirim melalui kanal agensi yang sudah dipakai. EVA tidak mengirim permintaan.
 - `/verify` menerima link utuh dari origin yang sama dan tetap memverifikasi link yang dibuka langsung. Browser mengolah fragment, dan pembacaan status tetap hanya memakai ID.
 - `/demo` menampung contoh interaktif berlabel Sample data. Juri yang menjalankan Docker dapat mengikuti penerbitan, verifikasi, dan pencabutan sungguhan melalui `/issue` di Local NEAR Sandbox. AC-01 dan AC-02 mengacu pada layar contoh di `/demo`.
 - Publikasi NEAR Testnet memakai kontrak dan issuer yang tercatat di README. Penerbitan Testnet tetap menggunakan CLI operator. Verifikasi dan demo publik tersedia tanpa wallet.

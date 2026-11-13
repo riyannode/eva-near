@@ -100,7 +100,7 @@ export default function Verify() {
     }
   }
   return <>
-    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/">Product</a><a href="/demo">Sample demo</a><a href="/verify" aria-current="page">Verify a link</a></nav>{result?.profile && <span>{sources[result.profile.network]}</span>}</header>
+    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/project">Project</a><a href="/demo">Sample demo</a><a href="/verify" aria-current="page">Verify a link</a></nav>{result?.profile && <span>{sources[result.profile.network]}</span>}</header>
     <main>
       <h1>Work reference</h1>
       {!fragment && <form className="verify-entry" onSubmit={submitLink}>
