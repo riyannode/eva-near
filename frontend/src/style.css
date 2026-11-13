@@ -4,6 +4,8 @@ body { margin: 0; }
 header, main { width: min(100% - 32px, 640px); margin-inline: auto; }
 header { display: flex; justify-content: space-between; align-items: center; min-height: 64px; gap: 12px; border-bottom: 1px solid #d8dfda; }
 header a { font-weight: 800; font-size: 20px; letter-spacing: .1em; }
+header nav { display: flex; gap: 16px; flex-wrap: wrap; }
+header nav a { font-size: .875rem; font-weight: 600; letter-spacing: 0; }
 header span { color: #46534d; font-size: .875rem; }
 main { padding-block: clamp(24px, 5vw, 56px); }
 h1 { margin: 0 0 24px; font-size: clamp(1.85rem, 6.5vw, 3rem); line-height: 1.12; letter-spacing: -.045em; }
@@ -29,7 +31,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .options { margin-top: 16px; }
 button, .button, input { font: inherit; }
 button, .button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 8px 14px; border: 1px solid #aabbb3; color: #075444; border-radius: 8px; text-decoration: none; background: #fff; font-weight: 650; }
-button.primary, button[aria-pressed=true] { background: #075444; border-color: #075444; color: #fff; }
+button.primary, .button.primary, button[aria-pressed=true] { background: #075444; border-color: #075444; color: #fff; }
 button:disabled { opacity: .65; cursor: default; }
 @media (hover: hover) { button:not(:disabled):hover, .button:hover { box-shadow: inset 0 0 0 1px currentColor; } }
 @media (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -49,3 +51,37 @@ form small { display: block; margin-block: 4px 16px; }
 dialog { width: min(100% - 32px, 480px); color: inherit; background: #fff; border: 1px solid #d8dfda; border-radius: 12px; padding: 24px; }
 dialog::backdrop { background: rgb(24 33 30 / 55%); }
 .identifier { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+.hero { padding-block: 12px 32px; }
+.eyebrow { margin: 0 0 8px; color: #46534d; font-size: .8rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.lede { max-width: 54ch; margin: -8px 0 24px; color: #46534d; font-size: 1.1rem; }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.text-link { margin: 0; }
+.path-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.path-card, .evidence, .sample-walkthrough { min-width: 0; padding: clamp(16px, 3vw, 24px); background: #fff; border: 1px solid #d8dfda; border-radius: 12px; }
+.path-card h2, .evidence h2, .sample-walkthrough h2 { font-size: 1.25rem; line-height: 1.25; }
+.path-card > p:not(.eyebrow), .evidence > p, .sample-walkthrough p { color: #46534d; }
+.request-form { display: grid; gap: 8px; }
+.request-form label { margin: 0; }
+.request-form .preview { overflow-wrap: anywhere; }
+.request-form .preview p { white-space: pre-wrap; }
+.fine-print, .copy-status { color: #46534d; font-size: .875rem; }
+.cli-disclosure { margin-top: 12px; border: 0; }
+.cli-disclosure summary { border-top: 1px solid #d8dfda; }
+.cli-steps { margin: 0; padding: 12px; overflow-wrap: anywhere; white-space: pre-wrap; background: #f7f7f4; border-radius: 6px; font-size: .8rem; }
+.evidence { margin-top: 24px; }
+.section-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.source-tag { flex-shrink: 0; padding: 4px 8px; border: 1px solid #aabbb3; border-radius: 6px; color: #075444; font-size: .8rem; font-weight: 700; }
+.testnet-links { margin-block: 16px; }
+.site-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid #d8dfda; color: #46534d; font-size: .875rem; }
+.sample-walkthrough { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.sample-walkthrough p { margin-block: 8px; }
+.sample-walkthrough small { flex-basis: 100%; }
+.sandbox-guide ol { padding-left: 22px; }
+.form-error { color: #822f22; }
+@media (max-width: 640px) {
+  header { flex-wrap: wrap; padding-block: 10px; }
+  header nav { order: 3; width: 100%; }
+  .path-grid { grid-template-columns: 1fr; }
+  .site-footer { flex-direction: column; }
+  .hero-actions .button { width: 100%; }
+}

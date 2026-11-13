@@ -1,0 +1,30 @@
+services:
+  frontend:
+    ports: !reset []
+    networks:
+      - default
+      - edge
+  edge:
+    image: caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee
+    platform: linux/amd64
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    environment:
+      EVA_HOST: ${EVA_HOST:?Set the EVA hostname without scheme or port}
+      XDG_CONFIG_HOME: /tmp
+      XDG_DATA_HOME: /tmp
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./frontend/Caddyfile.edge:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:${EVA_PORT:-8080}:8080"
+    networks:
+      - edge
+    depends_on:
+      - frontend
+    restart: "on-failure:3"
+
+networks:
+  edge: {}

@@ -2,13 +2,14 @@
 
 ## First screen
 
-EVA presents one concise agency reference. The first screen shows `EVA`, the current evidence source, `Verify the work. Keep the client confidential.`, one contribution, the professional alias, `Signed by Studio A`, its state, and `Client name and project files are kept private.` Sample content is always labeled `Sample data`.
+The homepage describes how an agency signs a contribution that a freelancer can share while keeping client information private. The primary action opens the verifier. A separate demo link leads to an interactive reference with the evidence source visible.
 
 ## Screens
 
-- `/` shows the valid sample reference immediately and offers text-labeled `Valid`, `Revoked`, and `Edited` examples. In Sandbox it links to `/issue`.
-- `/verify` checks the fragment on open. It does not display the claim until local integrity checks and the final registry read finish. `Check again` is available for live modes. A missing fragment explains how to reopen a complete link.
-- `/issue` exists only in the local Sandbox mode. It has two labeled fields, a preview, explicit approval, and one submit action. A final result offers `Copy link`, `Open reference`, and `Revoke`. Pending actions retain the same ID.
+- `/` gives recipients a way to verify a link, freelancers a way to prepare a request to send to their agency, and agency operators the publishing workflow.
+- `/demo` displays a sample claim and text-labeled `Valid`, `Revoked`, and `Edited` choices. In Sandbox it also links to `/issue` so judges can issue, verify, and revoke a reference using the local contract.
+- `/verify` accepts a complete reference link or checks the fragment on open. It displays the claim after integrity checks and a final registry read. `Check again` reads the current status.
+- `/issue` is available in local Sandbox. It has two labeled fields, a preview, explicit approval, and one submit action. A final result offers `Copy link`, `Open reference`, and `Revoke`. Pending actions retain the same ID.
 
 ## Status copy
 

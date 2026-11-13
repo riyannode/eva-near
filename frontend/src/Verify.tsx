@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { parseLinkFragment, verifyReference } from "@eva/backend/reference";
 import type { ReferencePayload, ReferenceProfile, Verification } from "@eva/backend/reference";
 import { getProfile, getReference } from "./api.ts";
@@ -52,6 +53,8 @@ export function ReferenceCard({ payload, issuer, outcome, profile }: {
 
 export default function Verify() {
   const [fragment, setFragment] = useState(window.location.hash);
+  const [pasted, setPasted] = useState("");
+  const [pasteError, setPasteError] = useState("");
   const [check, setCheck] = useState(0);
   const [result, setResult] = useState<{
     profile?: ReferenceProfile; issuer?: string; payload?: ReferencePayload; outcome: Verification;
@@ -62,17 +65,18 @@ export default function Verify() {
     return () => window.removeEventListener("hashchange", change);
   }, []);
   useEffect(() => {
+    if (!fragment) { setResult(undefined); return; }
     const cancel = new AbortController();
     const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(8000)]);
     async function run() {
-      const profile = await getProfile(signal);
       let link;
       try {
         link = parseLinkFragment(fragment);
       } catch {
-        if (!cancel.signal.aborted) setResult({ profile, outcome: { status: "INVALID", code: "INVALID_LINK" } });
+        if (!cancel.signal.aborted) setResult({ outcome: { status: "INVALID", code: "INVALID_LINK" } });
         return;
       }
+      const profile = await getProfile(signal);
       const outcome = await verifyReference(link, profile, id => getReference(id, profile, signal));
       if (!cancel.signal.aborted) setResult({ profile, issuer: profile.issuerLabel, payload: link.payload, outcome });
     }
@@ -81,15 +85,40 @@ export default function Verify() {
     });
     return () => cancel.abort();
   }, [fragment, check]);
+  function submitLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasteError("");
+    try {
+      const value = pasted.trim();
+      const url = value.startsWith("#") ? undefined : new URL(value);
+      if (url && (url.origin !== location.origin || url.pathname !== "/verify" || url.search || url.username || url.password)) throw new Error("INVALID_LINK");
+      const next = url?.hash ?? value;
+      parseLinkFragment(next);
+      location.assign("/verify" + next);
+    } catch {
+      setPasteError("Paste a complete EVA /verify link from this site, or its #r= fragment.");
+    }
+  }
   return <>
-    <header><a href="/">EVA</a>{result?.profile && <span>{sources[result.profile.network]}</span>}</header>
+    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/">Product</a><a href="/demo">Sample demo</a><a href="/verify" aria-current="page">Verify a link</a></nav>{result?.profile && <span>{sources[result.profile.network]}</span>}</header>
     <main>
       <h1>Work reference</h1>
-      <ReferenceCard {...result} />
-      <div className="actions">
-        <button className="primary" type="button" onClick={() => { setResult(undefined); setCheck(check + 1); }}>Check again</button>
-        <a className="button" href="/">Return to the demo</a>
-      </div>
+      {!fragment && <form className="verify-entry" onSubmit={submitLink}>
+        <label htmlFor="verify-link">Paste an EVA reference link or #r= fragment</label>
+        <div className="entry-row"><input id="verify-link" value={pasted} onChange={event => { setPasted(event.target.value); setPasteError(""); }}
+          aria-describedby={pasteError ? "verify-link-help verify-link-error" : "verify-link-help"}
+          aria-invalid={pasteError ? true : undefined} autoComplete="off" />
+          <button className="primary" type="submit">Check reference</button></div>
+        <small id="verify-link-help">Only a same-origin /verify link or its fragment is accepted. The fragment stays in your browser.</small>
+        {pasteError && <small className="form-error" id="verify-link-error" role="alert">{pasteError}</small>}
+      </form>}
+      {fragment && <ReferenceCard {...result} />}
+      {result && <>
+        <div className="actions">
+          <button className="primary" type="button" onClick={() => { setResult(undefined); setCheck(check + 1); }}>Check again</button>
+          <a className="button" href="/verify">Check another reference</a>
+        </div>
+      </>}
     </main>
   </>;
 }

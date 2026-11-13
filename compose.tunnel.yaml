@@ -1,0 +1,16 @@
+services:
+  tunnel:
+    image: cloudflare/cloudflared:2026.11.0@sha256:b94b96edf2c9c4360f8879c8580cfaa99077f19c849ec595ca2f711b27d4f344
+    platform: linux/amd64
+    user: "65532:65532"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    command: ["tunnel", "--no-autoupdate", "run", "--token-file", "/run/secrets/tunnel-token"]
+    volumes:
+      - /opt/eva-near/secrets/tunnel-token:/run/secrets/tunnel-token:ro
+    networks:
+      - edge
+    depends_on:
+      - edge
+    restart: unless-stopped

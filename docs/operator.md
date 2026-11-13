@@ -54,6 +54,33 @@ Use `resume` if the first issue left a pending file. It preserves the original I
 
 Place only public configuration in the VPS environment. Route TLS at the existing reverse proxy to the loopback port published by `compose.vps.yaml`. Confirm liveness, readiness, the CSP and cache headers, and 404 for `/issue` and all `/api/demo/*` routes. Roll back to the prior compatible application image if needed. Keep the contract and its registry in place.
 
+### Dedicated EVA edge
+
+`compose.edge.yaml` places a separate Caddy in front of the EVA frontend. The edge and the frontend share a Docker network. The backend stays on the application network. Only the edge publishes a loopback port. It serves the configured `EVA_HOST` and returns 404 for other hostnames.
+
+Set `EVA_HOST` to the hostname without a scheme or port. Set `PUBLIC_ORIGIN` to its full HTTPS origin. Set `EVA_PORT` only to override the loopback port. Validate and start the two Compose files together.
+
+```sh
+docker compose -p eva-near -f compose.vps.yaml -f compose.edge.yaml config --quiet
+docker compose -p eva-near -f compose.vps.yaml -f compose.edge.yaml up -d --build
+curl --fail --header "Host: $EVA_HOST" http://127.0.0.1:${EVA_PORT:-8080}/api/health
+```
+
+For a public HTTPS deployment, point an authorized ingress at the edge and preserve the configured hostname in `Host`. With a Cloudflare Tunnel, map the public hostname to `http://127.0.0.1:8080` when `cloudflared` runs on the VPS host. If the connector runs in Docker on the edge network, use `http://edge:8080` and set the origin Host header to `EVA_HOST` if needed. Confirm `/`, `/verify`, `/api/health` and `/api/ready` on the public origin, then check `/issue` and `/api/demo/*` return 404. DNS and ingress are provisioned separately.
+
+For the deployed Cloudflare Tunnel, store the connector token outside the checkout at `/opt/eva-near/secrets/tunnel-token`. On a standard rootful Docker host, set file ownership to `65532:65532` and permissions to `0400` so the connector process can read it. Keep the parent directory restricted. Cloudflare routes the public hostname to `http://edge:8080` with the configured EVA host header. Add the tunnel override to the same Compose project.
+
+```sh
+docker compose -p eva-near -f compose.vps.yaml -f compose.edge.yaml -f compose.tunnel.yaml config --quiet
+docker compose -p eva-near -f compose.vps.yaml -f compose.edge.yaml -f compose.tunnel.yaml up -d
+```
+
+Bring down the stack using the same project name and the overrides used to start it.
+
+```sh
+docker compose -p eva-near -f compose.vps.yaml -f compose.edge.yaml down
+```
+
 Independently check a record with a NEAR JSON-RPC `query` using `request_type: call_function`, `account_id` set to the configured contract, `method_name: get_reference`, `finality: final`, and `args_base64` containing UTF-8 JSON `{"reference_id":"<id>"}`. Decode the result bytes as JSON and compare the issuer key, commitment, and revocation flag. Keep the share fragment off RPC requests and release logs.
 
 Approve two synthetic links for the README after confirming one active and one revoked. Use a third link to record VALID → REVOKED at the same URL. Record release commit, image digests, SHA-256 of the deployed WASM, contract and issuer accounts, transaction hashes, and final view blocks. Check explorer links before publication. Keep the old verifier origin available if its links must remain verifiable after any future issuer or contract change.

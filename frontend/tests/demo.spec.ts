@@ -10,7 +10,7 @@ for (const width of [360, 1280]) {
     page.on("request", request => {
       if (/\/api\/(references|demo)(?:\/|$)/.test(new URL(request.url()).pathname)) reads.push(request.method());
     });
-    await page.goto("/");
+    await page.goto("/demo");
     const result = page.getByRole("status");
     await expect(result.getByText("VALID", { exact: true })).toBeVisible();
     await expect(page.getByText("Sample data", { exact: true }).first()).toBeVisible();
@@ -29,6 +29,16 @@ for (const width of [360, 1280]) {
     await page.keyboard.press("Tab");
     await page.keyboard.press("Enter");
     await expect(result.getByText("INVALID", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Simulate sample issue" }).click();
+    await expect(page.getByRole("button", { name: "Open sample reference" })).toBeEnabled();
+    await expect(result.getByText("VALID", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Open sample reference" }).click();
+    await expect(page.locator("#sample-reference")).toBeFocused();
+    await expect(page.getByRole("button", { name: "Simulate sample revoke" })).toBeEnabled();
+    await page.getByRole("button", { name: "Simulate sample revoke" }).click();
+    await expect(result.getByText("REVOKED", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Reset walkthrough" }).click();
+    await expect(result.getByText("VALID", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => ({
       fits: document.documentElement.scrollWidth <= innerWidth,
       reduced: matchMedia("(prefers-reduced-motion: reduce)").matches, secure: isSecureContext,
@@ -37,8 +47,36 @@ for (const width of [360, 1280]) {
   });
 }
 
-test("Unicode golden payload matches the browser digest", async ({ page }) => {
+test("product entry, local copy request and same-origin pasted verifier link", async ({ page }) => {
+  const apiRequests: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) {
+      expect(url.search + url.hash).toBe("");
+      apiRequests.push(url.pathname);
+    }
+  });
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Verify the work. Keep the client confidential." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Verify a reference" })).toHaveAttribute("href", "/verify");
+  await expect(page.getByRole("link", { name: "Active contribution · Alex Morgan" })).toHaveAttribute("href", /^https:\/\/evalabs\.my\.id\/verify#r=/);
+  await page.getByLabel("Professional name or alias").fill("Jordan Lee");
+  await page.getByLabel("Contribution to approve").fill("Built an accessible checkout flow.");
+  await expect(page.getByText(/No client name or project files are needed/)).toBeVisible();
+
+  await page.goto("/verify");
+  const origin = new URL(page.url()).origin;
+  await page.getByLabel("Paste an EVA reference link or #r= fragment").fill(origin + "//verify");
+  await page.getByRole("button", { name: "Check reference" }).click();
+  await expect(page.getByRole("alert")).toContainText("from this site");
+  await page.getByLabel("Paste an EVA reference link or #r= fragment").fill(origin + "/verify" + fixtures.Valid.fragment);
+  await page.getByRole("button", { name: "Check reference" }).click();
+  await expect.poll(() => page.evaluate(() => location.pathname + location.hash)).toBe("/verify" + fixtures.Valid.fragment);
+  expect(apiRequests.every(path => path === "/api/config" || path.startsWith("/api/references/"))).toBe(true);
+});
+
+test("Unicode golden payload matches the browser digest", async ({ page }) => {
+  await page.goto("/demo");
   const result = await page.evaluate(async ({ fragment, issuerKey }) => {
     const [payload, signature] = fragment.slice(3).split(".");
     const decode = (value: string) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/")), char => char.charCodeAt(0));
@@ -62,7 +100,7 @@ test("unsupported Ed25519 makes sample verification unavailable", async ({ page 
       value: () => Promise.reject(new DOMException("Ed25519 unsupported", "NotSupportedError")),
     });
   });
-  await page.goto("/");
+  await page.goto("/demo");
   await expect(page.getByRole("status").getByText("UNAVAILABLE", { exact: true })).toBeVisible();
   await expect(page.getByText("Sample data", { exact: true }).first()).toBeVisible();
 });
@@ -94,7 +132,10 @@ test("Sandbox issue, walletless verification, revocation and edit rejection", as
       requests.push(url.pathname);
     }
   });
-  await verifier.goto(href!);
+  await verifier.goto(origin + "/verify");
+  await verifier.getByLabel("Paste an EVA reference link or #r= fragment").fill(href!);
+  await verifier.getByRole("button", { name: "Check reference" }).click();
+  await expect.poll(() => verifier.evaluate(() => location.href)).toBe(href);
   const verdict = verifier.getByRole("status");
   const valid = verdict.getByText("VALID", { exact: true });
   const unavailable = verdict.getByText("UNAVAILABLE", { exact: true });
@@ -147,9 +188,9 @@ test("Sandbox issue, walletless verification, revocation and edit rejection", as
 
 test("VPS serves sample and closes local mutation routes", async ({ page, request }) => {
   test.skip(process.env.EVA_E2E_MODE !== "vps", "Requires the local VPS Compose stack");
-  await page.goto("/");
+  await page.goto("/demo");
   await expect(page.getByRole("status").getByText("VALID", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Issue a reference" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Issue in Local NEAR Sandbox" })).toHaveCount(0);
   expect((await request.get("/issue")).status()).toBe(404);
   expect((await request.get("/verify")).status()).toBe(200);
   expect((await request.post("/api/demo/references", { data: {} })).status()).toBe(404);
