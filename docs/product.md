@@ -51,7 +51,7 @@ revoke(reference_id) → REVOKED | UNCHANGED
 get_reference(reference_id) → null | { issuer_id, commitment, revoked }
 ```
 
-`init` dipanggil akun kontrak saat deployment. ID dan commitment masing-masing memakai 32 dan 64 karakter hex huruf kecil. `issue` mengambil pemilik dari `env::predecessor_account_id()`. Deposit menutup selisih storage aktual berdasarkan biaya per byte runtime. Kontrak mengembalikan kelebihan deposit dan menolak deposit yang kurang. ID aktif hanya idempoten untuk pemilik dan commitment yang sama. Retry tersebut tidak menambah storage. ID yang dicabut tidak dapat digunakan kembali. `revoke` mengizinkan pemilik record dan idempoten untuk pemilik setelah pencabutan. [Biaya penyimpanan NEAR](https://docs.near.org/smart-contracts/security/storage)
+`init` dipanggil akun kontrak saat deployment. ID dan commitment masing-masing memakai 32 dan 64 karakter hex huruf kecil. `issue` mengambil pemilik dari `env::predecessor_account_id()`. Deposit menutup selisih storage aktual berdasarkan biaya per byte dari NEAR SDK (`env::storage_byte_cost()`). Kontrak mengembalikan kelebihan deposit dan menolak deposit yang kurang. ID aktif hanya idempoten untuk pemilik dan commitment yang sama. Retry tersebut tidak menambah storage. ID yang dicabut tidak dapat digunakan kembali. `revoke` mengizinkan pemilik record dan idempoten untuk pemilik setelah pencabutan. [Biaya penyimpanan NEAR](https://docs.near.org/smart-contracts/security/storage)
 
 ### Aplikasi dan deployment
 
