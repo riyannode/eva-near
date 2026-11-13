@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { parseLinkFragment, verifyReference } from "@eva/backend/reference";
 import type { ReferencePayload, ReferenceProfile, Verification } from "@eva/backend/reference";
+import { testnetExamples } from "./testnetExamples.ts";
 import { getProfile, getReference } from "./api.ts";
 
 export const sources = { sample: "Sample data", sandbox: "Local NEAR Sandbox", testnet: "NEAR Testnet" } as const;
@@ -99,10 +100,10 @@ export default function Verify() {
       setPasteError("Paste a complete EVA /verify link from this site, or its #r= fragment.");
     }
   }
-  return <>
-    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/project">Project</a><a href="/demo">Sample demo</a><a href="/verify" aria-current="page">Verify a link</a></nav>{result?.profile && <span>{sources[result.profile.network]}</span>}</header>
-    <main>
-      <h1>Work reference</h1>
+  return <main id="main" tabIndex={-1} className="workspace verify-main">
+      <p className="eyebrow">{result?.profile ? sources[result.profile.network] : "For recruiters"}</p>
+      <h1>{fragment ? "Work reference" : "Verify a work reference"}</h1>
+      <div className="verify-grid"><div>
       {!fragment && <form className="verify-entry" onSubmit={submitLink}>
         <label htmlFor="verify-link">Paste an EVA reference link or #r= fragment</label>
         <div className="entry-row"><input id="verify-link" value={pasted} onChange={event => { setPasted(event.target.value); setPasteError(""); }}
@@ -119,6 +120,8 @@ export default function Verify() {
           <a className="button" href="/verify">Check another reference</a>
         </div>
       </>}
-    </main>
-  </>;
+      </div>
+      {!fragment && <section className="workspace-aside"><h2>Public Testnet examples</h2><p>Open a synthetic reference on the public verifier to check its current status on NEAR Testnet.</p><div className="actions">{testnetExamples.map(example => <a className="button" key={example.label} href={example.url} target="_blank" rel="noreferrer">{example.label}</a>)}</div></section>}
+      </div>
+    </main>;
 }

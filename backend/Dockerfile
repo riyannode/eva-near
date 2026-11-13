@@ -13,7 +13,7 @@ RUN pnpm --filter @eva/backend install --prod --no-optional --frozen-lockfile
 FROM node-base AS server
 COPY --from=server-deps /app/node_modules ./node_modules
 COPY --from=server-deps /app/backend/node_modules ./backend/node_modules
-COPY backend/package.json backend/server.ts backend/near.ts backend/reference.ts ./backend/
+COPY backend/package.json backend/server.ts backend/pilot.ts backend/near.ts backend/reference.ts ./backend/
 ENV APP_MODE=testnet PORT=3000
 USER node
 CMD ["node", "backend/server.ts"]
@@ -37,7 +37,7 @@ RUN tar -xf /tmp/near-sandbox.tar.gz -C /usr/local/bin --strip-components=1 && /
 FROM node-base AS judge
 COPY --from=judge-deps /app/node_modules ./node_modules
 COPY --from=judge-deps /app/backend/node_modules ./backend/node_modules
-COPY backend/package.json backend/server.ts backend/near.ts backend/reference.ts backend/issuer.ts backend/sandbox.ts ./backend/
+COPY backend/package.json backend/server.ts backend/pilot.ts backend/near.ts backend/reference.ts backend/issuer.ts backend/sandbox.ts ./backend/
 COPY --from=contract --chmod=0444 /app/backend/contract/target/near/reference.wasm ./reference.wasm
 COPY --from=sandbox-binary /usr/local/bin/near-sandbox /usr/local/bin/
 ENV APP_MODE=sandbox PORT=3000 NEAR_SANDBOX_BIN_PATH=/usr/local/bin/near-sandbox EVA_WASM_PATH=/app/reference.wasm

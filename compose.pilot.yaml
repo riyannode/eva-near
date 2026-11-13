@@ -1,0 +1,10 @@
+# Explicit opt-in override for one privately provisioned freelancer and agency.
+services:
+  backend:
+    environment:
+      PILOT_ENABLED: "true"
+      PILOT_DATABASE: /pilot/requests.sqlite
+      PILOT_FREELANCER_CODE: ${PILOT_FREELANCER_CODE:?Provision the freelancer code privately}
+      PILOT_AGENCY_CODE: ${PILOT_AGENCY_CODE:?Provision the agency code privately}
+    volumes:
+      - ${PILOT_DATA_DIR:?Provide a private directory writable by container UID 1000}:/pilot

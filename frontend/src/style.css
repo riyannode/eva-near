@@ -85,3 +85,70 @@ dialog::backdrop { background: rgb(24 33 30 / 55%); }
   .site-footer { flex-direction: column; }
   .hero-actions .button { width: 100%; }
 }
+/* Workspace frames follow the ReUI Frame pattern, with shadcn Field labels and inline help. */
+.workspace, .role-main {
+  width: min(100% - 48px, 86rem);
+  padding-block: clamp(36px, 5vw, 72px);
+}
+.workspace h1, .role-main h1 {
+  max-width: 24ch;
+  margin: 0 0 16px;
+  color: var(--ink);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.04;
+  font-weight: 650;
+  letter-spacing: -.06em;
+}
+.workspace h2, .role-main h2 { font-size: 1.375rem; line-height: 1.2; letter-spacing: -.035em; }
+.workspace .eyebrow, .role-main .eyebrow {
+  color: var(--accent);
+  font-size: .875rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.role-lede { margin: 0; color: var(--muted); font-size: 1.125rem; max-width: 57ch; }
+.workspace .lede { margin: 0 0 24px; }
+.role-section, .workspace-aside, .workspace .reference, .workspace .evidence, .workspace .sample-walkthrough {
+  min-width: 0;
+  background: #fffdf8;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  padding: clamp(16px, 3vw, 32px);
+  overflow-wrap: anywhere;
+}
+.workspace-aside { background: #e9efe5; }
+.workspace-aside > p { color: var(--muted); }
+.role-section > input { margin-bottom: 12px; }
+.role-main .request-form, .workspace .request-form { gap: 10px; }
+.site textarea {
+  width: 100%; padding: 10px; resize: vertical; border: 1px solid #aabbb3;
+  border-radius: 6px; font: inherit; color: inherit;
+}
+.pilot-content, .wallet-reference { margin-top: 20px; }
+.pilot-request { padding-block: 16px; border-top: 1px solid var(--rule); }
+.workspace-back { display: inline-block; margin-top: 24px; }
+.wallet-message { margin-bottom: 0; }
+.demo-grid, .verify-grid, .issue-grid, .role-main {
+  display: grid;
+  gap: clamp(16px, 3vw, 32px);
+  align-items: start;
+}
+.verify-grid, .issue-grid { margin-top: 24px; }
+.verify-grid > div { min-width: 0; }
+.demo-grid .sample-walkthrough { margin-top: 0; }
+.issue-main .reference { margin: 0; }
+@media (min-width: 860px) {
+  .demo-grid, .verify-grid, .issue-grid, .role-main {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+  .role-main > .eyebrow, .role-main > h1, .role-main > .role-lede { grid-column: 1 / -1; }
+  .role-main { row-gap: 12px; }
+  .role-main > .role-section, .role-main > .workspace-aside { margin-top: 16px; }
+}
+@media (max-width: 680px) {
+  .workspace, .role-main { width: calc(100% - 32px); }
+  .workspace .section-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site *, .site *::before, .site *::after { scroll-behavior: auto; }
+}

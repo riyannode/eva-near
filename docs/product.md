@@ -1,13 +1,71 @@
-EVA
-Product Requirements Document dan spesifikasi implementasi
-Versi 1.0 | 12 November 2026 WIB | Scope disepakati, implementasi belum dimulai
+# EVA · PRD produk dan roadmap
 
-Pembaruan navigasi produk, 13 November 2026
+Status · 13 November 2026 WIB. Bagian ini menjelaskan arah produk, scope pilot, dan urutan implementasi. [Spesifikasi rilis hackathon v1](#spesifikasi-rilis-hackathon-v1) di bawah tetap menjadi acuan format referensi, kontrak, dan bukti penerimaan AC-01–AC-09.
 
-- Halaman utama menjelaskan EVA dan mengarahkan pengunjung ke verifikasi, demo, atau halaman Project. Halaman `/project` memuat form permintaan freelancer dan panduan penerbit. Draft permintaan disalin untuk dikirim melalui kanal agensi yang sudah dipakai. EVA tidak mengirim permintaan.
-- `/verify` menerima link utuh dari origin yang sama dan tetap memverifikasi link yang dibuka langsung. Browser mengolah fragment, dan pembacaan status tetap hanya memakai ID.
-- `/demo` menampung contoh interaktif berlabel Sample data. Juri yang menjalankan Docker dapat mengikuti penerbitan, verifikasi, dan pencabutan sungguhan melalui `/issue` di Local NEAR Sandbox. AC-01 dan AC-02 mengacu pada layar contoh di `/demo`.
-- Publikasi NEAR Testnet memakai kontrak dan issuer yang tercatat di README. Penerbitan Testnet tetap menggunakan CLI operator. Verifikasi dan demo publik tersedia tanpa wallet.
+## Produk dan pelanggan pertama
+
+**EVA membantu agensi memberi freelancer referensi kerja yang bisa diperiksa perekrut ketika proyeknya terikat NDA.** Freelancer biasanya punya dua pilihan yang buruk: menghilangkan pekerjaan itu dari portofolio, atau menjelaskan kontribusinya tanpa bukti yang bisa diperiksa. Agensi harus memastikan tiap kalimat aman dibagikan. Perekrut butuh konteks singkat dan penerbit yang bisa dipercaya.
+
+Pelanggan pertama adalah agensi digital yang rutin memakai freelancer untuk beberapa proyek rahasia. Mulai dari satu agensi yang punya pekerjaan berulang dan satu operator yang berwenang menyetujui teks. Gunakan satu referensi singkat untuk satu kontribusi. Contoh: “Designed the checkout flow for an online store.” Nama klien dan file proyek tetap berada di sistem agensi.
+
+## Tiga perjalanan pengguna
+
+| Peran | Halaman | Tugas utama | Hasil yang dicari |
+| --- | --- | --- | --- |
+| Freelancer | `/freelancer` | Buat permintaan ke agensi yang pernah mempekerjakannya. Saat pilot aktif, kirim ke inbox dan lihat keputusan. | Kalimat kontribusi disetujui dan siap diterbitkan. Setelah terbit, gunakan referensi dalam CV atau lamaran. |
+| Agensi | `/agency` | Buka inbox privat, review permintaan, lalu setujui atau tolak. Terbitkan melalui CLI operator. Issuer Testnet terdaftar juga dapat mencabut referensi dari browser melalui extension yang kompatibel. | Agensi punya satu tempat untuk melihat permintaan dan mengetahui mana yang siap diterbitkan. |
+| Perekrut | `/recruiter`, `/verify` | Buka halaman referensi dari CV atau tempel link yang diterima. | Lihat kontribusi, penerbit, dan status tanpa akun atau wallet. |
+
+Beranda `/` menjawab masalahnya dengan satu contoh referensi dan tiga pintu masuk berlabel **Freelancer**, **Agency**, dan **Recruiter**. Gunakan kontainer lebar dengan judul dan aksi rata kiri. Form, panel hasil, dan inbox boleh mengisi kolom terpisah di desktop, lalu menumpuk di HP. `/project` memberi navigasi ke ketiga peran dan tetap menerima bookmark lama.
+
+### Alur pilot
+
+1. Operator memberi satu freelancer dan satu akun operator akses terpisah ke workspace agensi. Workspace menyimpan permintaan dan keputusan secara privat dan persisten.
+2. Freelancer melihat teks yang akan dikirim, lalu mengirim nama atau alias profesional dan satu klaim yang boleh ditinjau agensi. Agensi melihat permintaan di inbox. Freelancer melihat **Submitted**, **Approved**, atau **Declined**.
+3. **Approved** adalah keputusan internal. Agensi menerbitkan klaim yang sudah disetujui lewat CLI. Agensi mengirim referensi terbit kepada freelancer melalui kanal yang mereka pakai. CLI memeriksa transaksi dan catatan final sebelum menghasilkan link.
+4. Freelancer mencantumkan referensi di CV. Perekrut melihat status **VALID**, **REVOKED**, **INVALID**, atau **UNAVAILABLE** di verifier. Keempat status tersebut berasal dari verifikasi, terpisah dari status permintaan internal.
+
+Deploy verifier publik dan Docker juri dapat berjalan tanpa workspace pilot. Perilaku standar freelancer tetap menyiapkan draft untuk dikirim ke agensi. Halaman Agency menunjukkan cara penerbitan yang benar untuk mode yang aktif.
+
+## Data, kepercayaan, dan NEAR
+
+- **Backend aplikasi** mengatur akses freelancer dan operator, menyimpan permintaan dan keputusan, serta menjaga privasi workspace. Akses untuk melihat dan mengambil keputusan diperiksa di server. Isi permintaan, akses privat, dan catatan internal tidak ikut dalam transaksi atau log.
+- **Kontrak NEAR** mencatat commitment ber-salt serta status pencabutan. Hanya issuer yang berwenang bisa menulis. Verifier membaca blok final dan mencocokkan commitment dengan isi referensi. Status dapat dicek melalui RPC lain saat operator offline. Jika pembacaan gagal, tampilkan **UNAVAILABLE**.
+- **Agensi** bertanggung jawab atas kebenaran kontribusi dan izin untuk membagikan kalimat itu. Wallet membuktikan kendali atas akun penerbit. Onboarding agensi mengikat akun tersebut ke organisasi yang dikenal. Perekrut masih menilai reputasi agensi dan identitas kandidat lewat proses rekrutmen.
+- **Referensi yang dibagikan** mengandung nama atau alias dan satu klaim yang disetujui. Orang yang memiliki link dapat membacanya. Pengiriman link adalah salah satu cara membagikan halaman referensi dari CV. Identitas klien dan artefak proyek tetap di luar alur.
+
+## Arah implementasi
+
+| Urutan | Ruang lingkup | Bukti selesai |
+| --- | --- | --- |
+| 1. Peran dan pilot agensi | Beranda dengan tiga pintu masuk, workspace privat dengan inbox dan keputusan yang persisten, serta CLI sebagai alat issue/revoke v1. | Freelancer mengirim permintaan, operator yang berwenang melihat dan memutuskan, freelancer melihat hasil setelah refresh. Workspace bertahan setelah restart. Kode akses salah, peran salah, dan mode tanpa pilot menolak akses. Tiga peran bisa memilih halaman yang tepat di desktop dan 360 px. |
+| 2. Browser Testnet trial | Jalur `/agency` menuju layar trial khusus data sintetis. Connect NEAR Wallet hanya di alur issuer. Registri trial mencatat akun signer sebagai issuer dari record miliknya. Verifier trial mengenali contract ID, jaringan, issuer dan format trial yang eksplisit. | Dua akun bisa issue referensi mereka sendiri. Akun lain gagal revoke. Juri melihat **VALID → REVOKED** di panel yang sama setelah pembacaan final. Wallet dibatalkan, dana tes kurang, RPC gagal, atau transaksi belum final punya status yang jelas. Link v1 lama tetap lulus. |
+| 3. Penerbitan agensi dari browser | Onboard dan verifikasi identitas agensi, beri hak issue/revoke ke operator yang terdaftar, dan hubungkan permintaan yang sudah disetujui ke referensi final. Tambahkan daftar dan pencarian referensi serta riwayat operator. | Agensi bisa menuntaskan persetujuan hingga pencabutan di web. Freelancer melihat referensi final di workspace. Uji isolasi antaragensi, pergantian operator, retry idempoten, dan kompatibilitas referensi v1. |
+| 4. Pilot berbayar | Jalankan proses setelah penutupan proyek dengan beberapa agensi. Setelah ada penggunaan ulang dan komitmen bayar, tambahkan paket workspace dan billing. | Agensi menggunakan lagi untuk proyek berikutnya, mendapati waktu review berkurang, dan memilih melanjutkan dengan biaya yang disepakati. |
+
+Untuk tahap 2, gunakan NEAR Connect dengan jaringan Testnet dan sesi wallet pada halaman trial saja. Kontrak trial dan format verifikasinya punya versi terpisah. Untuk tahap 3, putuskan bagaimana wallet menyetujui payload dan bagaimana kunci/otorisasi agensi berganti tanpa merusak link lama. Jangan menganggap tanda tangan transaksi wallet sebagai tanda tangan payload v1. Pertahankan kontrak, parser, dan status v1 selama pengujian versi baru. Uji kontrak dan otorisasi di Sandbox sebelum melakukan transaksi publik. [NEAR Connect](https://docs.near.org/tools/near-connect)
+
+## Tiga cara juri mencoba
+
+| Jalur | Perilaku | Status |
+| --- | --- | --- |
+| **NEAR Testnet** | Buka referensi yang sudah diterbitkan dan periksa status final dari browser. Tahap 2 menambah **Try on Testnet** untuk juri yang ingin connect wallet dan issue/revoke sendiri. | Verifier v1 tersedia. Penerbitan dari browser masuk roadmap. |
+| **Interactive Demo** | Pilih Valid, Revoked, atau Edited di `/demo`. | **Sample data**, langsung di browser. |
+| **Self-hosted** | Jalankan Docker Compose, lalu issue, verify, dan revoke di `/issue`. | **Local NEAR Sandbox**, transaksi lokal pada WASM. |
+
+Kriteria pengalaman pembaca tetap diuji dengan tiga orang. Minta tiap orang mengidentifikasi kontribusi, penerbit, dan informasi yang tetap privat, lalu memilih halaman sesuai tugas yang diberikan.
+
+## Model bisnis
+
+Hipotesisnya adalah **langganan bulanan per workspace agensi**. Freelancer gratis meminta dan membawa referensinya. Perekrut gratis mengecek. Agensi membayar untuk alur persetujuan yang konsisten, akses tim, riwayat penerbitan, dan pencabutan di satu tempat. Biaya gas dan penyimpanan kontrak adalah biaya operasional yang perlu diukur per referensi.
+
+Validasi sebelum billing. Rekrut agensi melalui pemilik atau manajer operasional yang mengurus freelancer. Ukur berapa proyek yang menghasilkan referensi, waktu permintaan hingga keputusan, proporsi yang diterbitkan, dan apakah agensi memakai EVA lagi pada proyek berikutnya. Minta komitmen bayar dari pengguna yang sudah mengulang alurnya. Harga, paket volume, dan fitur tim mengikuti hasil pilot.
+
+## Spesifikasi rilis hackathon v1
+
+Spesifikasi versi 1.0 · 12 November 2026 WIB. Bagian berikut mendokumentasikan baseline rilis dan persyaratan verifikasi awal. Roadmap di atas mencatat perubahan produk setelah baseline.
+
+Catatan rute rilis. Contoh interaktif sekarang berada di `/demo`. Beranda tetap menampilkan satu contoh referensi untuk uji pemahaman AC-01. Mode VPS standar menyajikan verifier dan contoh. Workspace privat adalah mode opsional untuk pilot. Pencabutan lewat wallet tersedia bagi issuer Testnet terdaftar melalui `/agency/wallet`. Penerbitan oleh wallet juri menggunakan registri trial masih tahap 2.
 
 01. Produk dan tesis hackathon
 

@@ -1,3 +1,4 @@
+import { registerPilot } from "./pilot.ts";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import type { ReferenceEnvelope } from "./issuer.ts";
 import { assertProfile, createProvider, readReference, submitReferenceAction, type TransactionEvidence } from "./near.ts";
@@ -93,6 +94,7 @@ app.get("/api/config", async () => ({
   issuerId: profile.issuerId,
   issuerLabel,
   canIssue: mode === "sandbox",
+  pilotEnabled: process.env.PILOT_ENABLED === "true",
 }));
 
 app.get("/api/health", async () => ({ ok: true }));
@@ -315,6 +317,7 @@ if (mode === "sandbox") {
   }
   publicOrigin = origin.origin;
 }
+if (process.env.PILOT_ENABLED === "true") registerPilot(app, publicOrigin, { database: envValue("PILOT_DATABASE"), freelancer: envValue("PILOT_FREELANCER_CODE"), agency: envValue("PILOT_AGENCY_CODE") });
 await app.listen({ host: address, port });
 process.stdout.write(`${JSON.stringify({ event: "server_listening", mode, address, port })}\n`);
 void initialize().catch(() => {

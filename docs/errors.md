@@ -14,9 +14,10 @@
 | REFERENCE_NOT_FOUND | Final view from the expected contract returned no record | HTTP 404; verifier shows `INVALID`. |
 | REFERENCE_REVOKED | Record is revoked or an issue retries a revoked ID | Verifier shows `REVOKED` only after integrity checks; issue returns HTTP 409. |
 | REFERENCE_CONFLICT | Active ID is bound to a different commitment | HTTP 409. Stop retrying and inspect the pending file. |
+| PILOT_DECISION_CONFLICT | A different final decision is already recorded for this request | HTTP 409. Reload the inbox to see the saved decision. |
 | ISSUE_PENDING | Issue has not been confirmed | HTTP 202. Check status or resume with the same ID. |
 | REVOKE_PENDING | Revoke has not been confirmed | HTTP 202. Read final state before retry. |
-| FORBIDDEN | Caller, origin, or account is not authorized | HTTP 403. Check local mode and issuer account. |
+| FORBIDDEN | Caller, origin, or account is not authorized | HTTP 403. Check the active mode, issuer account, or private pilot access code. |
 | CAP_REACHED | 1024 records already exist | HTTP 409. Provision a new deployment. |
 | UNAVAILABLE | RPC timeout, malformed response, configuration mismatch, or unavailable Web Crypto | HTTP 503 or verifier state. Retry or inspect runtime configuration. |
 | ROUTE_NOT_FOUND | Route is not available in the active mode | HTTP 404. Return to a supported screen. |

@@ -130,13 +130,13 @@ export default function Issue() {
     }
   }
 
-  return <>
-    <header><a href="/">EVA</a><span>Local NEAR Sandbox</span></header>
-    <main>
+  return <main id="main" tabIndex={-1} className="workspace issue-main">
+      <p className="eyebrow">Local NEAR Sandbox</p>
       <h1>Issue a reference</h1>
       <p className="privacy">References in this local session expire when the Sandbox restarts.</p>
       {available === undefined && <p role="status">Checking local mode…</p>}
       {available === false && <p role="status">The local issuer is unavailable. <a href="/">Return to the demo</a>.</p>}
+      <div className="issue-grid">
       {available && <section className="reference">
         {(step === "idle" || step === "issuing" || step === "issue-pending") && <form onSubmit={submit}>
           <fieldset disabled={step !== "idle"}>
@@ -176,6 +176,12 @@ export default function Issue() {
           {step === "revoked" && <a className="button" href="/issue">Issue another reference</a>}
         </>}
       </section>}
+      <aside className="workspace-aside">
+        <h2>What happens next</h2>
+        <ol><li>Confirm the wording can be shared.</li><li>Open the issued reference and check its status.</li><li>Revoke it, then recheck the same reference.</li></ol>
+        <a href="/demo">Back to demo</a>
+      </aside>
+      </div>
       <dialog ref={dialog} aria-labelledby="revoke-title" onClose={() => revokeButton.current?.focus()}>
         <h2 id="revoke-title">Revoke this reference?</h2>
         <p>This permanently changes the link’s status to REVOKED. Anyone who has the link can still read its payload.</p>
@@ -185,6 +191,5 @@ export default function Issue() {
           <button className="primary" onClick={() => void revoke()}>Confirm revoke</button>
         </form>
       </dialog>
-    </main>
-  </>;
+    </main>;
 }

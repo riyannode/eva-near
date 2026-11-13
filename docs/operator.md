@@ -84,3 +84,26 @@ docker compose -p eva-near -f compose.vps.yaml -f compose.edge.yaml down
 Independently check a record with a NEAR JSON-RPC `query` using `request_type: call_function`, `account_id` set to the configured contract, `method_name: get_reference`, `finality: final`, and `args_base64` containing UTF-8 JSON `{"reference_id":"<id>"}`. Decode the result bytes as JSON and compare the issuer key, commitment, and revocation flag. Keep the share fragment off RPC requests and release logs.
 
 Approve two synthetic links for the README after confirming one active and one revoked. Use a third link to record VALID → REVOKED at the same URL. Record release commit, image digests, SHA-256 of the deployed WASM, contract and issuer accounts, transaction hashes, and final view blocks. Check explorer links before publication. Keep the old verifier origin available if its links must remain verifiable after any future issuer or contract change.
+
+
+## Private agency pilot
+
+The pilot pairs one freelancer with one agency operator. Enable it only for a workspace where both participants have agreed to share the request text. Give each participant their own code through a private channel. Every request in that workspace is visible to those two participants. Use a separate deployment and data directory for another pairing.
+
+1. Set `PILOT_DATA_DIR` to an absolute host directory writable by container UID 1000. Keep directory permissions at `0700` and restrict access to its backups. The SQLite file contains the freelancer's name or alias, contribution, and decision. Keep the data and its backups outside the repo. Preserve the directory across restarts.
+2. Generate distinct random codes with at least 32 random bytes each. The values must use the base64url alphabet. Set `PILOT_FREELANCER_CODE` and `PILOT_AGENCY_CODE` in a private environment file with mode `0600`. Keep the existing public Testnet settings there as well. Use `config --quiet` to avoid printing interpolated values.
+3. Add `compose.pilot.yaml` to the approved VPS Compose file list. The example uses the loopback frontend. When using the dedicated edge and tunnel, keep their overlays in the command and preserve the configured HTTPS host at ingress.
+
+   ```sh
+   docker compose --env-file /path/to/private-pilot.env -f compose.vps.yaml -f compose.pilot.yaml config --quiet
+   docker compose --env-file /path/to/private-pilot.env -f compose.vps.yaml -f compose.pilot.yaml up -d --build
+   ```
+
+4. On the configured HTTPS origin, open `/freelancer` with the freelancer code, submit a synthetic contribution, and confirm it appears in `/agency` with the agency code. Decide on the request and reload both pages to confirm the decision. Repeat after restarting the backend to verify persistence. Check that an incorrect code and an attempt to act as the other role are rejected.
+5. After an approval, prepare the approved request file on the operator device and follow [Operate and recover](#operate-and-recover). Share the resulting reference through the agreed private channel. Test verifications at `/verify` and keep issuance receipts separate from inbox decisions.
+
+The normal Testnet and Judge Compose commands omit the pilot overlay. To disable the pilot, recreate the backend without that overlay and verify that `/api/pilot/requests` returns 404. Keep the private data directory for the agreed retention period.
+
+## Revoke with a Testnet wallet
+
+On `/agency/wallet`, choose a NEAR Connect-compatible Testnet browser extension. Connect the configured issuer account and paste its EVA reference. After EVA displays `VALID`, open **Revoke this reference** and approve in your wallet. The contract receives only the reference ID. Check the final status before attempting another transaction. The verifier reads `REVOKED` on the same link. The CLI remains the recovery path and still issues v1 references. The wallet connection uses an injected extension and requests no access key during sign-in.

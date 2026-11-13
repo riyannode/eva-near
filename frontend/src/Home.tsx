@@ -1,22 +1,10 @@
 export default function Home() {
-  return <div className="landing">
-    <a className="skip-link" href="#main">Skip to content</a>
-    <header className="landing-nav">
-      <a className="landing-brand" href="/" aria-label="EVA home">EVA<span aria-hidden="true">.</span></a>
-      <nav aria-label="Main navigation">
-        <a href="/" aria-current="page">Home</a>
-        <a href="/project">Project</a>
-        <a href="/demo">Demo</a>
-      </nav>
-      <a className="landing-verify" href="/verify">Check a reference <span aria-hidden="true">↗</span></a>
-    </header>
-
-    <main id="main" className="landing-main">
+  return <main id="main" tabIndex={-1} className="landing landing-main">
       <section className="landing-hero" aria-labelledby="landing-title">
         <div className="landing-intro">
           <h1 id="landing-title">Show what you did on a confidential project</h1>
           <p>Ask the agency you worked with to confirm one contribution. Share the reference with a recruiter while keeping the client’s name and project files private.</p>
-          <a className="button primary landing-cta" href="/project">Open EVA <span aria-hidden="true">→</span></a>
+          <a className="button primary landing-cta" href="/freelancer">Request a reference <span aria-hidden="true">→</span></a>
         </div>
 
         <figure className="landing-example">
@@ -41,8 +29,9 @@ export default function Home() {
           <p>When an NDA limits what you can show, a short reference gives recruiters something they can check.</p>
         </div>
         <div className="landing-paths">
-          <a href="/project#request"><span><strong>Ask for a reference</strong><small>Write a short request to send to your agency.</small></span><span aria-hidden="true">↗</span></a>
-          <a href="/project#agency"><span><strong>Give a reference</strong><small>See how an agency can issue or withdraw a reference.</small></span><span aria-hidden="true">↗</span></a>
+          <a href="/freelancer"><span><strong>Freelancer: request a reference</strong><small>Request a reference from your agency.</small></span><span aria-hidden="true">↗</span></a>
+          <a href="/agency"><span><strong>Agency: review a request</strong><small>Review requests and issue a reference.</small></span><span aria-hidden="true">↗</span></a>
+        <a href="/recruiter"><span><strong>Recruiter: verify a reference</strong><small>Check the signed claim and registry status.</small></span><span aria-hidden="true">↗</span></a>
         </div>
       </section>
 
@@ -55,15 +44,5 @@ export default function Home() {
         </ol>
         <a href="/demo">Try an example <span aria-hidden="true">→</span></a>
       </section>
-    </main>
-
-    <footer className="landing-footer">
-      <a className="landing-brand" href="/" aria-label="EVA home">EVA<span aria-hidden="true">.</span></a>
-      <nav aria-label="Footer navigation">
-        <a href="/project">Project</a>
-        <a href="/demo">Demo</a>
-        <a href="https://github.com/riyannode/eva-near">Source code</a>
-      </nav>
-    </footer>
-  </div>;
+    </main>;
 }

@@ -58,7 +58,7 @@ test("landing entry, project workflow and same-origin pasted verifier link", asy
   });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Show what you did on a confidential project", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open EVA", exact: true })).toHaveAttribute("href", "/project");
+  await expect(page.getByRole("link", { name: "Request a reference", exact: true })).toHaveAttribute("href", "/freelancer");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "Demo" })).toHaveAttribute("href", "/demo");
@@ -70,11 +70,12 @@ test("landing entry, project workflow and same-origin pasted verifier link", asy
   await expect(sample.getByText("Designed the checkout flow for an online store.")).toBeInViewport();
   await expect(sample.getByText("Studio A")).toBeInViewport();
   await expect(sample.getByText("Client name and project files stay private.")).toBeInViewport();
-  await page.getByRole("link", { name: "Open EVA", exact: true }).click();
-  await expect(page).toHaveURL(/\/project$/);
-  await page.getByLabel("Professional name or alias").fill("Jordan Lee");
-  await page.getByLabel("Contribution to approve").fill("Built an accessible checkout flow.");
-  await expect(page.getByText(/No client name or project files are needed/)).toBeVisible();
+  await page.getByRole("link", { name: "Request a reference", exact: true }).click();
+  await expect(page).toHaveURL(/\/freelancer$/);
+  await page.getByLabel("Professional name or alias", { exact: true }).fill("Jordan Lee");
+  await page.getByLabel("Contribution to approve", { exact: true }).fill("Built an accessible checkout flow.");
+  await page.getByRole("button", { name: "Prepare draft" }).click();
+  await expect(page.getByLabel("Copy this request to your agency")).toHaveValue(/Built an accessible checkout flow/);
 
   await page.goto("/verify");
   const origin = new URL(page.url()).origin;
@@ -85,6 +86,19 @@ test("landing entry, project workflow and same-origin pasted verifier link", asy
   await page.getByRole("button", { name: "Check reference" }).click();
   await expect.poll(() => page.evaluate(() => location.pathname + location.hash)).toBe("/verify" + fixtures.Valid.fragment);
   expect(apiRequests.every(path => path === "/api/config" || path.startsWith("/api/references/"))).toBe(true);
+});
+
+test("homepage role paths lead to their primary tasks", async ({ page }) => {
+  for (const [label, path, heading] of [
+    ["Freelancer: request a reference", "/freelancer", "Request a reference for your work"],
+    ["Agency: review a request", "/agency", "Review reference requests"],
+    ["Recruiter: verify a reference", "/recruiter", "Verify a work reference"],
+  ]) {
+    await page.goto("/");
+    await page.getByRole("link", { name: new RegExp(label) }).click();
+    await expect(page).toHaveURL(new RegExp(path + "$"));
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+  }
 });
 
 test("Unicode golden payload matches the browser digest", async ({ page }) => {

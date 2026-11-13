@@ -20,7 +20,7 @@
 			}
 		}
 	}
-	@screen expression `path("/") || path("/project") || path("/demo") || path("/verify") || (path("/issue") && "{$EVA_MODE:testnet}" == "sandbox")`
+	@screen expression `path("/") || path("/project") || path("/freelancer") || path("/agency") || path("/agency/wallet") || path("/recruiter") || path("/demo") || path("/verify") || (path("/issue") && "{$EVA_MODE:testnet}" == "sandbox")`
 	handle @screen {
 		rewrite * /index.html
 		file_server

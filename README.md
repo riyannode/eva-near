@@ -2,11 +2,21 @@
 
 **Verify the work. Keep the client confidential.**
 
-EVA gives a recruiter one agency-signed contribution statement to verify. The share link contains the approved name or alias and one claim. The contract stores a salted commitment to that claim and its revocation status. Client names and project files stay out of the flow. The agency is responsible for its approval and reputation.
+Freelancers often leave confidential projects out of their portfolios because they cannot share the client name or project files. EVA lets an agency approve one contribution for the freelancer to share. The recruiter checks the agency's approval and current status on NEAR.
 
-## Try it
+| Role | What to do |
+| --- | --- |
+| Freelancer | Prepare a request for the agency you worked with. In an enabled pilot, submit it to the agency inbox and check its decision. |
+| Agency | Review requests in the private pilot inbox. Publish approved wording with the operator CLI. The registered Testnet issuer can also revoke from Agency → Connect NEAR Wallet. |
+| Recruiter | Open a reference from a CV or paste it into the verifier. Read the contribution, issuer, and status without an account or wallet. |
 
-### 1. Use the live Testnet verifier
+The share link contains the approved name or alias and one claim. NEAR stores a salted commitment and revocation status. The agency is responsible for the accuracy and disclosure of its approval.
+
+[Product requirements, roadmap, and business model](docs/product.md) · [Operator guide](docs/operator.md) · [Enable a private pilot](docs/operator.md#private-agency-pilot)
+
+## Three ways to try EVA
+
+### 1. Check an issued reference on NEAR Testnet
 
 Open the verifier, then paste a link from an issuer. A direct reference link opens the same verifier. It checks the claim and reads the current status from NEAR Testnet without a wallet. [Open the verifier](https://evalabs.my.id/verify)
 
@@ -14,8 +24,6 @@ Try these two synthetic references. Open **Verification details** to see the iss
 
 - [VALID reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYxIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2UtMjYxMTEzLnRlc3RuZXQiLCJldmEtaXNzdWVyLTI2MTExMy50ZXN0bmV0IiwiN2RhMjkyYmQ1ZWVkM2E3ZWQ4NjQwZjQ2N2RlNTVhN2QiLCJqbXUydlV6eklXeDh4QmY2SUNVVGFfTDZGcmt0dk9qQVdyYkVYbkZ0RDVzIiwiQWxleCBNb3JnYW4iLCJEZXNpZ25lZCB0aGUgY2hlY2tvdXQgZmxvdyBmb3IgYSBkZW1vIGUtY29tbWVyY2UgcHJvamVjdC4iXQ.6LybvkLkV0A0fNpl-luwYDTdOZNiBjRk6HGF-VE8E2y_1dGlWhT34g_OopUMZjXgfTw_Ta399bUJh710uh4_BA)
 - [REVOKED reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYxIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2UtMjYxMTEzLnRlc3RuZXQiLCJldmEtaXNzdWVyLTI2MTExMy50ZXN0bmV0IiwiNzI3MTBlNjAwNTNmODkxZjdkNzBiMjk1ODYxNzk2OWEiLCIxdjlIQmxYMGFlMHRmRHZnZmRqQloydU1XODJiSWM3UG1hN1FqTTFualNFIiwiVGF5bG9yIEJyb29rcyIsIkJ1aWx0IGFuIGFjY2Vzc2liaWxpdHkgY2hlY2tsaXN0IGZvciBhIGRlbW8gc3RvcmVmcm9udC4iXQ.T1R2qLRRtQPRux0svkRzLOkpyD8EoHY-0GkzkoltqRnhrZFwZOKn3R_0oTqNva7sxuynpix2bNBXqRPsjMDWAA)
-
-Freelancers can prepare a reference request on the Project page and copy it to send to the agency they worked with. The configured agency approves the claim, issues the signed link, and can revoke it with the local operator CLI. [Operator instructions](docs/operator.md)
 
 ### 2. Try the browser demo
 
