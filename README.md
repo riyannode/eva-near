@@ -34,7 +34,22 @@ docker compose down
 
 ### NEAR Testnet
 
-Public evidence for this registry is pending the approved release. The Testnet demo begins on `/agency` with a wallet-funded synthetic reference. Open the link as a recruiter to verify `VALID`, revoke with the same account, then verify `REVOKED` on the same link. The [operator runbook](docs/operator.md#prepare-the-testnet-release) specifies the release checks and evidence to publish.
+The released registry was exercised with Meteor Wallet 0.8.12 using synthetic references. A walletless browser and independent final reads verified the outcomes:
+
+- [Active reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYyIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2Utd2FsbGV0LTI2MTExMy50ZXN0bmV0IiwiZXZhLWlzc3Vlci0yNjExMTMudGVzdG5ldCIsImZhMThkZjQzYWJiMDI0MTlkM2RhYjQ2NmI2NWFmYWNjIiwidW1EalRYa0hhRllDR0hBNjdOUzg1aTZWbkExS0hCcWNqa2dmZ3pYX1JPZyIsIkFsZXggTW9yZ2FuIiwiRGVzaWduZWQgdGhlIGNoZWNrb3V0IGZsb3cgZm9yIGEgc3ludGhldGljIHN0b3JlZnJvbnQuIl0) — `VALID` after issue.
+- [Revoked reference](https://evalabs.my.id/verify#r=WyJldmE6cmVmZXJlbmNlOnYyIiwidGVzdG5ldCIsImV2YS1yZWZlcmVuY2Utd2FsbGV0LTI2MTExMy50ZXN0bmV0IiwiZXZhLWlzc3Vlci0yNjExMTMudGVzdG5ldCIsIjlhMjEwNmFhOTQzYzZjYjVhZjkxNWU4YmM4YjU1NWVlIiwiY1A3SWNtbFR3X3dVeGstNTEzblNCNVpfdkZMYks5d29POFNHbkNWa0hPVSIsIk1heWEgQ2hlbiIsIlJldmlld2VkIGFjY2Vzc2liaWxpdHkgZm9yIGEgc3ludGhldGljIHN0b3JlZnJvbnQuIl0) — `VALID` after issue, then `REVOKED` on the same link after revocation.
+
+Release evidence:
+
+- Release commit: `90348dac649ce79a1bd27a8163bdf0faa1af342f`. Tested Judge WASM and deployed on-chain code share SHA-256 `bb2e0f5853f83a732efb5ee3f5d92d2bafbb1e56f71224639819c17782c79220`.
+- Contract: `eva-reference-wallet-261113.testnet`; issuer: `eva-issuer-261113.testnet`.
+- Deployment transaction: `AAYCNafhyS8o5c21b5SDPVVB9RntVESD5DAQPvBUSYJx`; final read block: `277501290` / `BRPqS8ZG1TuJBhgMgec4rU8o9LMpmc6N5Udu6ievmkXG`.
+- Active issue transaction: `5A3yyvnmBqsR7AL9R9kSt4PB57VU2f3uDt5zgRubK9L4`; final read block: `277617804` / `DowVektMs44EbFWzL6ApnU7NW95R9a5uedVvs3PfdyYT`.
+- Second issue transaction: `9fX8YkzFM1sGJQNzemwBvSZWnT1C5HV849wAwRGPunja`; final read block: `277617844` / `8UCN2fBQU8g3vbS5BmrtQ4WT1vVHZxPExTN8C16WZ4sA`.
+- Revoke transaction: `H6GBBuiM9aedx8zLSz8FHrdnLNWjKYTKVzrwhu2pjKU3`; final read block: `277617883` / `5WEVCWR2fdXwZvC3faZW6vZUCqcATjBdGuqGsHakZTva`.
+- Deployed backend image digest: `sha256:b46845a6b13b6f779232c853e269d5a971df81d8832b05704bd1cb4232ca3e17`; frontend image digest: `sha256:4bde9cbf079f4ddaf8fc65d235f352cbbb3e48adc3900149e7a54858689ae4e2`. `GET /api/ready` returned HTTP `200` with `{"ready":true}`.
+
+The Testnet flow begins on `/agency`. The [operator runbook](docs/operator.md#prepare-the-testnet-release) describes release checks.
 
 ## Checks
 
