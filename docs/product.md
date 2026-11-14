@@ -22,7 +22,7 @@ Setelah wallet diminta mengirim transaksi, status yang ditampilkan bergantung pa
 | --- | --- |
 | **Sample data** | `/demo` memeriksa fixture lokal untuk status Valid, Revoked, dan Edited. |
 | **Local NEAR Sandbox** | Docker menjalankan WASM registri dan signer lokal. Juri membuka `/issue` untuk issue → verifikasi `VALID` → revoke → verifikasi `REVOKED` pada link yang sama tanpa wallet eksternal. Restart menghapus record lokal. |
-| **NEAR Testnet** | Setelah rilis disetujui, agensi menerbitkan melalui browser dan perekrut memeriksa hasil final pada registry yang dikonfigurasi. Agensi mencabut dengan akun yang menerbitkan. Bukti publik mengikuti [runbook rilis](operator.md#prepare-the-testnet-release). |
+| **NEAR Testnet** | Di deployment publik, agensi menerbitkan dan mencabut referensi melalui browser dengan akun wallet yang sama. Perekrut memeriksa status final pada registry Testnet. Contoh aktif dan dicabut tersedia di [bukti rilis Testnet di README](../README.md#near-testnet). |
 
 ### Data dan kepercayaan
 
@@ -67,7 +67,7 @@ Caddy menyajikan frontend dan proxy API pada satu origin. Docker juri mempublika
 | P1 · Registry | Unit test meliputi ownership, deposit dan refund, input, konflik, duplikat, dan pencabutan permanen. |
 | P2 · Protokol | Golden vector Unicode identik di Node dan browser. Perubahan payload, issuer mismatch, record hilang, revoke, dan RPC gagal memberi status yang sesuai. Verifikasi mengirim ID saja. |
 | P3 · Peran | Uji browser meliputi 360 px, desktop, fokus, Escape dan reduced motion. Wallet fixture menguji pemilihan akun, transaksi issue/revoke, kegagalan dan baca final. Docker menguji issue dan revoke pada WASM sungguhan. |
-| P4 · Rilis | Jalankan pemeriksaan README. Setelah persetujuan rilis, rekam hash WASM yang diuji, commit, akun kontrak, transaksi dan blok final untuk bukti Testnet. |
+| P4 · Rilis | Jalankan pemeriksaan README. [Bukti rilis Testnet di README](../README.md#near-testnet) mencatat hash WASM yang diuji, commit rilis, akun kontrak, transaksi dan blok final untuk deployment publik. |
 
 ## Post-hackathon
 
