@@ -15,7 +15,7 @@ for (const width of [360, 1280]) {
     await expect(result.getByText("VALID", { exact: true })).toBeVisible();
     await expect(page.getByText("Sample data", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Designed the checkout flow for an e-commerce project.", { exact: true })).toBeVisible();
-    await expect(page.getByText("Signed by Studio A")).toBeVisible();
+    await expect(page.getByText("Issued by studio.sample")).toBeVisible();
     await expect(page.getByText("Client name and project files are kept private.")).toBeVisible();
     if (info.project.name === "chromium" && process.env.EVA_E2E_EVIDENCE) {
       await page.screenshot({ path: process.env.EVA_E2E_EVIDENCE + "/eva-sample-" + width + ".png" });
@@ -58,7 +58,18 @@ test("landing entry, project workflow and same-origin pasted verifier link", asy
   });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Show what you did on a confidential project", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open EVA", exact: true })).toHaveAttribute("href", "/project");
+  const openEva = page.getByRole("button", { name: "Open EVA" });
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await openEva.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "How will you use EVA?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /Freelancer/ })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("link", { name: /Agency/ })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(openEva).toBeFocused();
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "Demo" })).toHaveAttribute("href", "/demo");
@@ -70,11 +81,14 @@ test("landing entry, project workflow and same-origin pasted verifier link", asy
   await expect(sample.getByText("Designed the checkout flow for an online store.")).toBeInViewport();
   await expect(sample.getByText("Studio A")).toBeInViewport();
   await expect(sample.getByText("Client name and project files stay private.")).toBeInViewport();
-  await page.getByRole("link", { name: "Open EVA", exact: true }).click();
-  await expect(page).toHaveURL(/\/project$/);
-  await page.getByLabel("Professional name or alias").fill("Jordan Lee");
-  await page.getByLabel("Contribution to approve").fill("Built an accessible checkout flow.");
-  await expect(page.getByText(/No client name or project files are needed/)).toBeVisible();
+  await page.getByRole("button", { name: "Open EVA" }).click();
+  await page.getByRole("dialog").getByRole("link", { name: "Freelancer" }).click();
+  await expect(page).toHaveURL(/\/freelancer$/);
+  await page.getByLabel("Professional name or alias", { exact: true }).fill("Jordan Lee");
+  await page.getByLabel("Contribution to approve", { exact: true }).fill("Built an accessible checkout flow.");
+  await page.getByRole("button", { name: "Prepare draft" }).click();
+  await expect(page.getByLabel("Copy this request to your agency")).toHaveValue(/Built an accessible checkout flow/);
+  await expect(page.getByRole("button", { name: "Connect NEAR Wallet" })).toHaveCount(0);
 
   await page.goto("/verify");
   const origin = new URL(page.url()).origin;
@@ -87,34 +101,18 @@ test("landing entry, project workflow and same-origin pasted verifier link", asy
   expect(apiRequests.every(path => path === "/api/config" || path.startsWith("/api/references/"))).toBe(true);
 });
 
-test("Unicode golden payload matches the browser digest", async ({ page }) => {
-  await page.goto("/demo");
-  const result = await page.evaluate(async ({ fragment, issuerKey }) => {
-    const [payload, signature] = fragment.slice(3).split(".");
-    const decode = (value: string) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/")), char => char.charCodeAt(0));
-    const bytes = decode(payload);
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-    const key = await crypto.subtle.importKey("raw", decode(issuerKey), "Ed25519", false, ["verify"]);
-    return {
-      digest: Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join(""),
-      valid: await crypto.subtle.verify("Ed25519", key, decode(signature), bytes),
-      decoded: new TextDecoder().decode(bytes),
-    };
-  }, { fragment: fixtures.Unicode.fragment, issuerKey: fixtures.issuerKey });
-  expect(result.digest).toBe(fixtures.Unicode.commitment);
-  expect(result.valid).toBe(true);
-  expect(result.decoded).toContain('"Café","Designed the été flow for 東京."');
-});
-
-test("unsupported Ed25519 makes sample verification unavailable", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(SubtleCrypto.prototype, "importKey", {
-      value: () => Promise.reject(new DOMException("Ed25519 unsupported", "NotSupportedError")),
-    });
-  });
-  await page.goto("/demo");
-  await expect(page.getByRole("status").getByText("UNAVAILABLE", { exact: true })).toBeVisible();
-  await expect(page.getByText("Sample data", { exact: true }).first()).toBeVisible();
+test("homepage role paths lead to their primary tasks", async ({ page }) => {
+  for (const [label, path, heading] of [
+    ["Freelancer", "/freelancer", "Request a reference for your work"],
+    ["Agency", "/agency", "Issue a work reference"],
+    ["Recruiter", "/recruiter", "Verify a work reference"],
+  ]) {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Open EVA" }).click();
+    await page.getByRole("dialog").getByRole("link", { name: new RegExp(label) }).click();
+    await expect(page).toHaveURL(new RegExp(path + "$"));
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+  }
 });
 
 test("Sandbox issue, walletless verification, revocation and edit rejection", async ({ page, context, request }, info) => {
@@ -156,7 +154,7 @@ test("Sandbox issue, walletless verification, revocation and edit rejection", as
   await expect(valid).toBeVisible({ timeout: 10_000 });
   await expect(verifier.getByText("Local NEAR Sandbox", { exact: true }).first()).toBeVisible();
   const fragment = new URL(href!).hash;
-  const [encoded, signature] = fragment.slice(3).split(".");
+  const encoded = fragment.slice(3);
   const fields: string[] = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
   const statusPath = "/api/references/" + fields[4];
   expect([...new Set(requests)]).toEqual(["/api/config", statusPath]);
@@ -185,15 +183,11 @@ test("Sandbox issue, walletless verification, revocation and edit rejection", as
     [1, "testnet"], [2, "other.sandbox"], [3, "other.sandbox"]] as const) {
     const changed = [...fields];
     changed[index] = value;
-    await verifier.goto(origin + "/verify#r=" + Buffer.from(JSON.stringify(changed)).toString("base64url") + "." + signature);
+    await verifier.goto(origin + "/verify#r=" + Buffer.from(JSON.stringify(changed)).toString("base64url"));
     await expect(verdict.getByText("INVALID", { exact: true })).toBeVisible();
   }
-  const badSignature = Buffer.from(signature, "base64url");
-  badSignature[0] ^= 1;
-  await verifier.goto(origin + "/verify#r=" + encoded + "." + badSignature.toString("base64url"));
-  await expect(verdict.getByText("INVALID", { exact: true })).toBeVisible();
   fields[4] = "f".repeat(32);
-  await verifier.goto(origin + "/verify#r=" + Buffer.from(JSON.stringify(fields)).toString("base64url") + "." + signature);
+  await verifier.goto(origin + "/verify#r=" + Buffer.from(JSON.stringify(fields)).toString("base64url"));
   await expect(verdict.getByText("INVALID", { exact: true })).toBeVisible();
   expect((await request.get("/api/references/" + fields[4])).status()).toBe(404);
 });

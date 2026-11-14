@@ -13,21 +13,21 @@ const messages = {
 };
 const explanations: Record<string, string> = {
   INVALID_LINK: "Open the original reference link. This link is incomplete or malformed.",
-  PROFILE_MISMATCH: "Open the link on the site configured for this issuer.",
+  PROFILE_MISMATCH: "Open the link on the site configured for this network and contract.",
   REFERENCE_NOT_FOUND: "No record was found in the configured registry.",
-  SIGNATURE_INVALID: "Ask the issuer for the original link.",
+  ISSUER_MISMATCH: "Ask the issuer for the original link.",
   COMMITMENT_MISMATCH: "Ask the issuer for the original link.",
-  UNAVAILABLE: "Try again, or open the link in a browser with Ed25519 Web Crypto support.",
+  UNAVAILABLE: "Try again.",
 };
 
-export function ReferenceCard({ payload, issuer, outcome, profile }: {
-  payload?: ReferencePayload; issuer?: string; outcome?: Verification; profile?: ReferenceProfile;
+export function ReferenceCard({ payload, outcome, profile }: {
+  payload?: ReferencePayload; outcome?: Verification; profile?: Pick<ReferenceProfile, "network" | "contractId">;
 }) {
   const valid = outcome?.status === "VALID";
   return <section className="reference" aria-label="Reference">
     {valid && payload && <blockquote>
       <p>{payload.claim}</p>
-      <footer><strong>{payload.subject}</strong><span>Signed by {issuer}</span></footer>
+      <footer><strong>{payload.subject}</strong><span>Issued by {payload.issuerId}</span></footer>
     </blockquote>}
     <div className="verdict" role="status" aria-live="polite">
       {outcome ? <>
@@ -41,7 +41,7 @@ export function ReferenceCard({ payload, issuer, outcome, profile }: {
       <dl>
         <dt>Source</dt><dd>{sources[profile.network]}</dd>
         <dt>Contract</dt><dd>{profile.contractId}</dd>
-        <dt>Issuer</dt><dd>{profile.issuerId}</dd>
+        {payload && <><dt>Issuer</dt><dd>{payload.issuerId}</dd></>}
         {"record" in outcome && outcome.record.blockHeight !== undefined && <>
           <dt>Final block</dt><dd>{outcome.record.blockHeight}</dd>
           <dt>Block hash</dt><dd>{outcome.record.blockHash}</dd>
@@ -57,7 +57,7 @@ export default function Verify() {
   const [pasteError, setPasteError] = useState("");
   const [check, setCheck] = useState(0);
   const [result, setResult] = useState<{
-    profile?: ReferenceProfile; issuer?: string; payload?: ReferencePayload; outcome: Verification;
+    profile?: Pick<ReferenceProfile, "network" | "contractId">; payload?: ReferencePayload; outcome: Verification;
   }>();
   useEffect(() => {
     const change = () => { setResult(undefined); setFragment(window.location.hash); };
@@ -77,8 +77,8 @@ export default function Verify() {
         return;
       }
       const profile = await getProfile(signal);
-      const outcome = await verifyReference(link, profile, id => getReference(id, profile, signal));
-      if (!cancel.signal.aborted) setResult({ profile, issuer: profile.issuerLabel, payload: link.payload, outcome });
+      const outcome = await verifyReference(link, profile, id => getReference(id, signal));
+      if (!cancel.signal.aborted) setResult({ profile, payload: link.payload, outcome });
     }
     void run().catch(() => {
       if (!cancel.signal.aborted) setResult({ outcome: { status: "UNAVAILABLE", code: "UNAVAILABLE" } });
@@ -99,10 +99,10 @@ export default function Verify() {
       setPasteError("Paste a complete EVA /verify link from this site, or its #r= fragment.");
     }
   }
-  return <>
-    <header><a href="/">EVA</a><nav aria-label="Main navigation"><a href="/project">Project</a><a href="/demo">Sample demo</a><a href="/verify" aria-current="page">Verify a link</a></nav>{result?.profile && <span>{sources[result.profile.network]}</span>}</header>
-    <main>
-      <h1>Work reference</h1>
+  return <main id="main" tabIndex={-1} className="workspace verify-main">
+      <p className="eyebrow">{result?.profile ? sources[result.profile.network] : "For recruiters"}</p>
+      <h1>{fragment ? "Work reference" : "Verify a work reference"}</h1>
+      <div className="verify-grid"><div>
       {!fragment && <form className="verify-entry" onSubmit={submitLink}>
         <label htmlFor="verify-link">Paste an EVA reference link or #r= fragment</label>
         <div className="entry-row"><input id="verify-link" value={pasted} onChange={event => { setPasted(event.target.value); setPasteError(""); }}
@@ -119,6 +119,8 @@ export default function Verify() {
           <a className="button" href="/verify">Check another reference</a>
         </div>
       </>}
-    </main>
-  </>;
+      </div>
+
+      </div>
+    </main>;
 }

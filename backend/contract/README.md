@@ -1,6 +1,6 @@
 # Reference contract
 
-The registry stores a salted payload commitment and revocation flag for each reference ID. One configured issuer can issue and permanently revoke references. Anyone can read a record and the issuer's public verification key.
+The registry stores the caller’s NEAR account, a salted payload commitment, and a revocation flag per reference ID. The caller pays for new storage and receives any excess deposit back. Only the stored issuer can permanently revoke its record. Anyone can read a record.
 
 Run from the repository root with Rust 1.99.1 and cargo-near 0.23.0.
 

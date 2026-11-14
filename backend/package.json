@@ -8,8 +8,7 @@
     "lint": "oxlint .",
     "build": "node --experimental-strip-types --check server.ts",
     "test": "node --experimental-strip-types --test reference.test.ts",
-    "dev": "node --experimental-strip-types server.ts",
-    "reference": "node --experimental-strip-types cli.ts"
+    "dev": "node --experimental-strip-types server.ts"
   },
   "dependencies": {
     "fastify": "5.12.8",

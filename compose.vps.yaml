@@ -11,8 +11,6 @@ services:
       APP_MODE: testnet
       NEAR_RPC_URL: ${NEAR_RPC_URL:?Configure the Testnet RPC URL}
       NEAR_CONTRACT_ID: ${NEAR_CONTRACT_ID:?Configure the Reference contract}
-      NEAR_ISSUER_ID: ${NEAR_ISSUER_ID:?Configure the issuer account}
-      ISSUER_LABEL: ${ISSUER_LABEL:?Configure the issuer label}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Configure the public HTTPS origin}
     restart: "on-failure:3"
   frontend:
