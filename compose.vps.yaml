@@ -12,7 +12,13 @@ services:
       NEAR_RPC_URL: ${NEAR_RPC_URL:?Configure the Testnet RPC URL}
       NEAR_CONTRACT_ID: ${NEAR_CONTRACT_ID:?Configure the Reference contract}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Configure the public HTTPS origin}
-    restart: "on-failure:3"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health', { signal: AbortSignal.timeout(3000) }).then(async r => { if (r.status !== 200 || (await r.json()).ok !== true) process.exitCode = 1; }).catch(() => { process.exitCode = 1; })"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
   frontend:
     platform: linux/amd64
     build:
@@ -21,5 +27,12 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 3 http://127.0.0.1:8080/ | grep -Fq '<title>EVA'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     ports:
       - "127.0.0.1:${EVA_PORT:-8080}:8080"

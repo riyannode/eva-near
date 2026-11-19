@@ -24,7 +24,13 @@ services:
       - edge
     depends_on:
       - frontend
-    restart: "on-failure:3"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 3 -H \"Host: $${EVA_HOST}\" http://127.0.0.1:8080/ | grep -Fq '<title>EVA'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 networks:
   edge: {}
